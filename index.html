@@ -137,7 +137,7 @@
     </div>
 
     <div id="hud" class="hidden">
-      <div class="pill"><span data-i18n="hud_hp">HP</span>: <span id="hp">100</span></div>
+      <div class="pill"><span data-i18n="hud_hp">HP</span>: <span id="hp">200</span></div>
       <div class="pill"><span data-i18n="hud_time">时间</span>: <span id="tm">60</span>s</div>
       <div class="pill"><span data-i18n="hud_goal">目标</span>: <span id="goal">—</span></div>
     </div>
@@ -530,7 +530,7 @@
     const crosshairRaycaster = new THREE.Raycaster();
 
 
-    const player = { pos: new THREE.Vector3(0,1.6,10), vel: new THREE.Vector3(), speed: PLAYER_SPEED, hp: 100, weapon: null };
+    const player = { pos: new THREE.Vector3(0,1.6,10), vel: new THREE.Vector3(), speed: PLAYER_SPEED, hp: 200, weapon: null };
     let playerMarker = null; // THREE.Group
 
     // mouse-look state
