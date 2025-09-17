@@ -184,6 +184,8 @@
               </select>
             </label>
             <label><span data-i18n="editor_time">时间(秒)</span> <input id="level-time" type="number" step="1" value="60"/></label>
+            <!-- New: Player HP setting -->
+            <label><span data-i18n="editor_player_hp">玩家HP</span> <input id="player-hp" type="number" min="1" step="1" value="100"/></label>
             <div class="row">
                 <label style="flex:1;"><span data-i18n="editor_arena_w">场地宽W</span> <input id="arena-w" type="number" step="1" value="90"/></label>
                 <label style="flex:1;"><span data-i18n="editor_arena_d">场地深D</span> <input id="arena-d" type="number" step="1" value="70"/></label>
@@ -543,7 +545,7 @@
     const hud = $('hud'), hpEl = $('hp'), tmEl = $('tm'), goalEl = $('goal'), crosshair = $('crosshair'), damageFx = $('damage');
     const menu = $('menu'), editorPanel = $('editor'), pausePanel = $('pause'), lockHint = $('lockHint');
     const objKind = $('obj-kind'), posX = $('pos-x'), posZ = $('pos-z'), positionInputsRow = $('position-inputs-row');
-    const gameModeSel = $('game-mode'), levelTimeInput = $('level-time'), arenaWInput = $('arena-w'), arenaDInput = $('arena-d');
+    const gameModeSel = $('game-mode'), levelTimeInput = $('level-time'), arenaWInput = $('arena-w'), arenaDInput = $('arena-d'), playerHpInput = $('player-hp');
     const turretPanel = $('turret-panel'), turretType = $('turret-type'), turretRate = $('turret-rate'), bulletSpeed = $('bullet-speed');
     const gearSel = $('gear'), moveModeSel = $('move-mode'), patrolW = $('patrol-w'), patrolD = $('patrol-d');
     const pathEditBtn = $('path-edit'), pathDoneBtn = $('path-done'), pathClearBtn = $('path-clear'), pathLoopChk = $('path-loop');
@@ -639,7 +641,7 @@
             editor_export: '导出JSON', editor_import: '导入JSON',
             editor_level_name: '关卡名称', editor_slot: '槽位', editor_object_list: '对象列表', editor_level_settings: '关卡设置',
             editor_mode: '模式', editor_mode_elimination: '炮台歼灭模式', editor_mode_survival: '倒计时模式', editor_mode_waypoint: '不准动模式',
-            editor_time: '时间(秒)', editor_arena_w: '场地宽W', editor_arena_d: '场地深D', editor_environment: '环境设置',
+            editor_time: '时间(秒)', editor_player_hp: '玩家HP', editor_arena_w: '场地宽W', editor_arena_d: '场地深D', editor_environment: '环境设置',
             editor_day_night_enabled: '启用昼夜循环', editor_cycle_duration: '循环时长(秒)', editor_sun_intensity: '日照强度',
             editor_sky_color_default: '默认天空色', editor_sky_color_day: '白天色', editor_sky_color_night: '夜间色',
 
@@ -723,7 +725,7 @@
             editor_export: 'Export JSON', editor_import: 'Import JSON',
             editor_level_name: 'Level Name', editor_slot: 'Slot', editor_object_list: 'Object List', editor_level_settings: 'Level Settings',
             editor_mode: 'Mode', editor_mode_elimination: 'Elimination Mode', editor_mode_survival: 'Survival Mode', editor_mode_waypoint: 'Waypoint Mode',
-            editor_time: 'Time (s)', editor_arena_w: 'Arena W', editor_arena_d: 'Arena D', editor_environment: 'Environment',
+            editor_time: 'Time (s)', editor_player_hp: 'Player HP', editor_arena_w: 'Arena W', editor_arena_d: 'Arena D', editor_environment: 'Environment',
             editor_day_night_enabled: 'Enable Day/Night Cycle', editor_cycle_duration: 'Cycle Duration (s)', editor_sun_intensity: 'Sun Intensity',
             editor_sky_color_default: 'Default Sky', editor_sky_color_day: 'Day Sky', editor_sky_color_night: 'Night Sky',
 
@@ -3198,7 +3200,8 @@ if (stretchMode.active && stretchMode.wall) {
         menu.classList.add('hidden');
         editorPanel.style.display = 'none';
         if(orbitControls) orbitControls.enabled=false;
-        player.hp = 100;
+        // Set player HP from editor input or default
+        player.hp = parseInt(playerHpInput.value, 10) || 100;
         timeLeft = parseFloat(level.timer ?? 60);
         currentGameMode = level.gameMode || GameModes.ELIM;
         totalWaypointsInLevel = (level.waypoints || []).length;
@@ -3593,6 +3596,15 @@ if (stretchMode.active && stretchMode.wall) {
         pathDoneBtn.addEventListener('click',()=>{ pathEdit.active=false; pathEdit.turret=null; pathEditBtn.style.display='inline-block'; pathDoneBtn.style.display='none'; updatePathVisuals(null); });
         pathClearBtn.addEventListener('click',()=>{ const s=editorData.selection; if(s&&s.kind==='turret'){ s.ref.path.length=0; updatePathVisuals(null); }});
         pathLoopChk.addEventListener('change',()=>{ const s=editorData.selection; if(s&&s.kind==='turret') s.ref.pathLoop=pathLoopChk.checked; });
+
+        // Player HP Editor Binding
+        playerHpInput.addEventListener('input', () => {
+            const val = parseInt(playerHpInput.value, 10);
+            if (!isNaN(val)) {
+                player.hp = val;
+                updateHUD();
+            }
+        });
 
         // King Kong Editor Bindings
         kingkongHpInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'kingkong_turret') s.ref.hp = s.ref.maxHp = parseInt(kingkongHpInput.value, 10); });
