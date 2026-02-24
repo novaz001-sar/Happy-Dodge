@@ -190,6 +190,11 @@
                 <label style="flex:1;"><span data-i18n="editor_arena_w">场地宽W</span> <input id="arena-w" type="number" step="1" value="90"/></label>
                 <label style="flex:1;"><span data-i18n="editor_arena_d">场地深D</span> <input id="arena-d" type="number" step="1" value="70"/></label>
             </div>
+                        <label style="display:flex; align-items:center; gap:6px; margin-top: 8px;"><input type="checkbox" id="topdown-view-enabled"/><span data-i18n="editor_topdown_view_enabled">第三人称俯瞰视角</span></label>
+            <div id="topdown-camera-settings" class="row" style="display:none;">
+                <label style="flex:1;"><span data-i18n="editor_topdown_angle">俯瞰角度(°)</span> <input id="topdown-angle" type="number" min="10" max="89" step="1" value="60"/></label>
+                <label style="flex:1;"><span data-i18n="editor_topdown_distance">俯瞰距离</span> <input id="topdown-distance" type="number" min="5" max="200" step="1" value="35"/></label>
+            </div>
             <div class="sep"></div>
             <h4 data-i18n="editor_environment">环境设置</h4>
             <label style="display:flex; align-items:center; gap:6px; margin-bottom: 8px;"><input type="checkbox" id="day-night-enabled"/><span data-i18n="editor_day_night_enabled">启用昼夜循环</span></label>
@@ -467,7 +472,8 @@
     const PLAYER_SPEED = 3;
     const PLAYER_BULLET_SPEED = 150;
     const PLAYER_RADIUS = 0.5; // For collision detection
-    const GameModes = { ELIM:'elimination', SURV:'survival', WAYPOINT: 'waypoint' };
+    const GameModes = { ELIM:'elimination', SURV:'survival', WAYPOINT:'waypoint' };
+    const ViewModes = { FIRST:'firstperson', TOPDOWN:'topdown' };
     const CUSTOM_SLOTS = 5;
     const VERSION = 153; // Updated version
     const SLOT_KEY = (i)=> `gd_menu_custom_level_v${VERSION}_slot${i}`;
@@ -484,6 +490,7 @@
     let gameMode = 'menu'; // 'menu' | 'playing' | 'paused' | 'editing'
     let currentGameMode = GameModes.ELIM;
     let lastLevel = null;
+    let loadedLevelMeta = null; // last loaded level's meta (name/mode/timer/camera)
     let objectCounter = 0;
     let gameStartTime = 0;
     let editingBuiltInKey = null;
@@ -500,6 +507,26 @@
     let visualSettings = {
         crosshairColor: '#00FF00', crosshairThickness: 4, crosshairSize: 20
     };
+
+    // Camera / view settings (stored per-level)
+    const DEFAULT_CAMERA_SETTINGS = {
+        viewMode: ViewModes.FIRST,
+        topDownAngle: 60,      // degrees. 0=horizontal, 90=straight down
+        topDownDistance: 35,   // world units
+        topDownYaw: 0          // degrees around Y axis (not exposed in editor for now)
+    };
+    let cameraSettings = { ...DEFAULT_CAMERA_SETTINGS };
+
+    // Top-down aim state (mouse pointer on screen -> world point on ground)
+    const topDownAim = {
+        ndc: new THREE.Vector2(0, 0),
+        clientX: window.innerWidth / 2,
+        clientY: window.innerHeight / 2,
+        hasPointer: false
+    };
+    const topDownRaycaster = new THREE.Raycaster();
+    const topDownGroundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
     // Updated Environment settings with Sky Colors
     let levelEnvironment = {
         dayNightCycleEnabled: false, cycleDuration: 120, currentTime: 0,
@@ -532,6 +559,7 @@
 
     const player = { pos: new THREE.Vector3(0,1.6,10), vel: new THREE.Vector3(), speed: PLAYER_SPEED, hp: 200, weapon: null };
     let playerMarker = null; // THREE.Group
+    let playerAvatar = null; // THREE.Group (visible in top-down mode)
 
     // mouse-look state
     const look = { yaw: 0, pitch: 0, sens: 0.0025, deltaX: 0, deltaY: 0 };
@@ -545,7 +573,7 @@
     const hud = $('hud'), hpEl = $('hp'), tmEl = $('tm'), goalEl = $('goal'), crosshair = $('crosshair'), damageFx = $('damage');
     const menu = $('menu'), editorPanel = $('editor'), pausePanel = $('pause'), lockHint = $('lockHint');
     const objKind = $('obj-kind'), posX = $('pos-x'), posZ = $('pos-z'), positionInputsRow = $('position-inputs-row');
-    const gameModeSel = $('game-mode'), levelTimeInput = $('level-time'), arenaWInput = $('arena-w'), arenaDInput = $('arena-d'), playerHpInput = $('player-hp');
+    const gameModeSel = $('game-mode'), topDownViewChk = $('topdown-view-enabled'), levelTimeInput = $('level-time'), arenaWInput = $('arena-w'), arenaDInput = $('arena-d'), playerHpInput = $('player-hp'), topDownAngleInput = $('topdown-angle'), topDownDistanceInput = $('topdown-distance'), topDownCameraSettingsRow = $('topdown-camera-settings');
     const turretPanel = $('turret-panel'), turretType = $('turret-type'), turretRate = $('turret-rate'), bulletSpeed = $('bullet-speed');
     const gearSel = $('gear'), moveModeSel = $('move-mode'), patrolW = $('patrol-w'), patrolD = $('patrol-d');
     const pathEditBtn = $('path-edit'), pathDoneBtn = $('path-done'), pathClearBtn = $('path-clear'), pathLoopChk = $('path-loop');
@@ -640,8 +668,8 @@
             editor_title: '编辑器', editor_test: '测试关卡', editor_exit: '返回菜单', editor_save: '保存', editor_load: '加载',
             editor_export: '导出JSON', editor_import: '导入JSON',
             editor_level_name: '关卡名称', editor_slot: '槽位', editor_object_list: '对象列表', editor_level_settings: '关卡设置',
-            editor_mode: '模式', editor_mode_elimination: '炮台歼灭模式', editor_mode_survival: '倒计时模式', editor_mode_waypoint: '不准动模式',
-            editor_time: '时间(秒)', editor_player_hp: '玩家HP', editor_arena_w: '场地宽W', editor_arena_d: '场地深D', editor_environment: '环境设置',
+            editor_mode: '模式', editor_mode_elimination: '炮台歼灭模式', editor_mode_survival: '倒计时模式', editor_mode_waypoint: '不准动模式', editor_mode_topdown: '第三人称俯瞰模式',
+            editor_time: '时间(秒)', editor_player_hp: '玩家HP', editor_arena_w: '场地宽W', editor_arena_d: '场地深D', editor_topdown_view_enabled: '第三人称俯瞰视角', editor_topdown_angle: '俯瞰角度(°)', editor_topdown_distance: '俯瞰距离', editor_environment: '环境设置',
             editor_day_night_enabled: '启用昼夜循环', editor_cycle_duration: '循环时长(秒)', editor_sun_intensity: '日照强度',
             editor_sky_color_default: '默认天空色', editor_sky_color_day: '白天色', editor_sky_color_night: '夜间色',
 
@@ -724,8 +752,8 @@
             editor_title: 'Editor', editor_test: 'Test Level', editor_exit: 'Back to Menu', editor_save: 'Save', editor_load: 'Load',
             editor_export: 'Export JSON', editor_import: 'Import JSON',
             editor_level_name: 'Level Name', editor_slot: 'Slot', editor_object_list: 'Object List', editor_level_settings: 'Level Settings',
-            editor_mode: 'Mode', editor_mode_elimination: 'Elimination Mode', editor_mode_survival: 'Survival Mode', editor_mode_waypoint: 'Waypoint Mode',
-            editor_time: 'Time (s)', editor_player_hp: 'Player HP', editor_arena_w: 'Arena W', editor_arena_d: 'Arena D', editor_environment: 'Environment',
+            editor_mode: 'Mode', editor_mode_elimination: 'Elimination Mode', editor_mode_survival: 'Survival Mode', editor_mode_waypoint: 'Waypoint Mode', editor_mode_topdown: 'Third-person Top-down',
+            editor_time: 'Time (s)', editor_player_hp: 'Player HP', editor_arena_w: 'Arena W', editor_arena_d: 'Arena D', editor_topdown_view_enabled: 'Third-person Top-down View', editor_topdown_angle: 'Top-down Angle (°)', editor_topdown_distance: 'Top-down Distance', editor_environment: 'Environment',
             editor_day_night_enabled: 'Enable Day/Night Cycle', editor_cycle_duration: 'Cycle Duration (s)', editor_sun_intensity: 'Sun Intensity',
             editor_sky_color_default: 'Default Sky', editor_sky_color_day: 'Day Sky', editor_sky_color_night: 'Night Sky',
 
@@ -1390,6 +1418,12 @@ if (stretchMode.active && stretchMode.wall) {
     // ---------- Helpers ----------
     const clamp = (x,a,b)=>Math.max(a, Math.min(b, x));
     const deepClone = (o)=>JSON.parse(JSON.stringify(o));
+    // Normalize game mode for backward compatibility (legacy 'topdown' used to be a gameMode).
+    const normalizeGameMode = (m)=>{
+        if (m === 'topdown') return GameModes.ELIM;
+        if (m === GameModes.ELIM || m === GameModes.SURV || m === GameModes.WAYPOINT) return m;
+        return GameModes.ELIM;
+    };
     // Gear speeds are based on player speed. Tier 1=0.25x, Tier 2=0.35x, Tier 3=0.5x (relative to player speed)
     const gearToSpeed = (tier) => { const base = player.speed; if (String(tier)==='3') return base*0.5; if (String(tier)==='2') return base*0.35; return base*0.25; };
     const isPointerLocked = ()=> document.pointerLockElement === (renderer && renderer.domElement);
@@ -1403,11 +1437,39 @@ if (stretchMode.active && stretchMode.wall) {
     };
     const initYawPitchFromCamera = ()=>{ const e = new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ'); look.pitch=e.x; look.yaw=e.y; };
     const applyYawPitch = ()=>{ const maxP=Math.PI/2-0.05; look.pitch=Math.max(-maxP,Math.min(maxP,look.pitch)); camera.quaternion.setFromEuler(new THREE.Euler(look.pitch,look.yaw,0,'YXZ')); };
+
+    const updateTopDownCamera = ()=>{
+        // Spherical camera around the player: distance + pitch angle (俯瞰角度)
+        const angDeg = (Number(cameraSettings.topDownAngle) || DEFAULT_CAMERA_SETTINGS.topDownAngle);
+        const dist = (Number(cameraSettings.topDownDistance) || DEFAULT_CAMERA_SETTINGS.topDownDistance);
+        const yawDeg = (Number(cameraSettings.topDownYaw) || DEFAULT_CAMERA_SETTINGS.topDownYaw);
+
+        const ang = THREE.MathUtils.degToRad(clamp(angDeg, 10, 89));
+        const d = clamp(dist, 5, 200);
+        const yaw = THREE.MathUtils.degToRad(yawDeg);
+
+        const h = Math.sin(ang) * d;
+        const r = Math.cos(ang) * d;
+        const offX = Math.sin(yaw) * r;
+        const offZ = Math.cos(yaw) * r;
+
+        camera.position.set(player.pos.x + offX, player.pos.y + h, player.pos.z + offZ);
+        camera.lookAt(player.pos.x, player.pos.y, player.pos.z);
+    };
+
+    const getTopDownAimPoint = (out)=>{
+        if (!topDownAim.hasPointer) return null;
+        topDownRaycaster.setFromCamera(topDownAim.ndc, camera);
+        const hit = out || new THREE.Vector3();
+        const ok = topDownRaycaster.ray.intersectPlane(topDownGroundPlane, hit);
+        return ok ? hit : null;
+    };
+
     const showHUD = (b)=>{
         hud.classList.toggle('hidden',!b);
         crosshair.classList.toggle('hidden',!b);
         if (player.weapon) {
-             const weaponVisible = b && currentGameMode !== GameModes.WAYPOINT;
+             const weaponVisible = b && currentGameMode !== GameModes.WAYPOINT && cameraSettings.viewMode !== ViewModes.TOPDOWN;
              player.weapon.visible = weaponVisible;
         }
     };
@@ -1504,7 +1566,11 @@ if (stretchMode.active && stretchMode.wall) {
 
         document.addEventListener('pointerlockchange', ()=>{
             if (gameMode==='playing') {
-                lockHint.style.display = isPointerLocked()? 'none':'block';
+                if (cameraSettings.viewMode === ViewModes.TOPDOWN) {
+                    lockHint.style.display = 'none';
+                } else {
+                    lockHint.style.display = isPointerLocked()? 'none':'block';
+                }
                 look.deltaX = 0;
                 look.deltaY = 0;
             }
@@ -1519,7 +1585,7 @@ if (stretchMode.active && stretchMode.wall) {
 
         renderer.domElement.addEventListener('contextmenu',(e)=>e.preventDefault());
         renderer.domElement.addEventListener('mousedown',(e)=>{
-            if (gameMode==='playing' && e.button===2 && !isPointerLocked()){
+            if (gameMode==='playing' && cameraSettings.viewMode !== ViewModes.TOPDOWN && e.button===2 && !isPointerLocked()){
             altDrag.active=true; altDrag.lastX=e.clientX; altDrag.lastY=e.clientY; initYawPitchFromCamera(); lockHint.style.display='none';
             look.deltaX = 0;
             look.deltaY = 0;
@@ -1532,11 +1598,28 @@ if (stretchMode.active && stretchMode.wall) {
         });
 
         renderer.domElement.addEventListener('mousemove',(e)=>{
+            // Top-down aim tracking (free mouse)
+            if (gameMode === 'playing' && cameraSettings.viewMode === ViewModes.TOPDOWN) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                topDownAim.ndc.set(x, y);
+                topDownAim.clientX = e.clientX;
+                topDownAim.clientY = e.clientY;
+                topDownAim.hasPointer = true;
+                setCrosshairToClientXY(e.clientX, e.clientY);
+            }
+
             if (gameMode==='playing' && altDrag.active && !isPointerLocked()){
-            const dx=e.clientX-altDrag.lastX, dy=e.clientY-altDrag.lastY;
-            altDrag.lastX=e.clientX; altDrag.lastY=e.clientY;
-            look.deltaX += dx;
-            look.deltaY += dy;
+                const dx=e.clientX-altDrag.lastX, dy=e.clientY-altDrag.lastY;
+                altDrag.lastX=e.clientX; altDrag.lastY=e.clientY;
+                look.deltaX += dx;
+                look.deltaY += dy;
+            }
+        });
+        renderer.domElement.addEventListener('mouseleave', ()=>{
+            if (gameMode === 'playing' && cameraSettings.viewMode === ViewModes.TOPDOWN) {
+                topDownAim.hasPointer = false;
             }
         });
 
@@ -1552,7 +1635,7 @@ if (stretchMode.active && stretchMode.wall) {
                 orbitControls.mouseButtons.LEFT = null;
             }
         });
-        renderer.domElement.addEventListener('click',()=>{ if (gameMode==='playing' && !isPointerLocked()) tryRequestPointerLock(); });
+        renderer.domElement.addEventListener('click',()=>{ if (gameMode==='playing' && cameraSettings.viewMode !== ViewModes.TOPDOWN && !isPointerLocked()) tryRequestPointerLock(); });
 
         window.addEventListener('resize', onResize);
         document.addEventListener('keydown',(e)=>{
@@ -2442,6 +2525,36 @@ if (stretchMode.active && stretchMode.wall) {
     }
     function hidePlayerMarker(){ if (playerMarker) playerMarker.visible=false; }
 
+    function ensurePlayerAvatar(){
+        if (playerAvatar) return;
+        const g = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({color:0x34d399});
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), mat); head.position.y=1.6; g.add(head);
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.8, 4, 16), mat); body.position.y=0.8; g.add(body);
+        g.position.set(player.pos.x, 0, player.pos.z);
+        g.visible = false;
+        scene.add(g);
+        playerAvatar = g;
+    }
+    function setPlayerAvatarVisible(v){
+        ensurePlayerAvatar();
+        playerAvatar.visible = !!v;
+    }
+    function updatePlayerAvatar(){
+        if (!playerAvatar || !playerAvatar.visible) return;
+        playerAvatar.position.set(player.pos.x, 0, player.pos.z);
+    }
+
+    function resetCrosshairPosition(){
+        // Restore default center positioning used by first-person modes
+        crosshair.style.left = '50%';
+        crosshair.style.top = '50%';
+    }
+    function setCrosshairToClientXY(x, y){
+        crosshair.style.left = `${x}px`;
+        crosshair.style.top = `${y}px`;
+    }
+
     function createPlayerWeapon(){
         if (player.weapon) return;
         const group=new THREE.Group();
@@ -2508,6 +2621,25 @@ if (stretchMode.active && stretchMode.wall) {
 
     function playerShoot(){
         if (currentGameMode === GameModes.WAYPOINT) return;
+
+        // Top-down mode: shoot from player towards mouse point on the ground
+        if (cameraSettings.viewMode === ViewModes.TOPDOWN) {
+            const from = new THREE.Vector3(player.pos.x, player.pos.y - 0.2, player.pos.z);
+            const hit = getTopDownAimPoint(new THREE.Vector3());
+            const dir = new THREE.Vector3();
+            if (hit) dir.subVectors(hit, from);
+            else dir.set(0,0,-1).applyQuaternion(camera.quaternion);
+
+            if (dir.lengthSq() < 1e-8) dir.set(0,0,-1);
+            dir.normalize();
+
+            const mesh=new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({color:0x00aaff}));
+            mesh.position.copy(from);
+            scene.add(mesh);
+            bullets.push({mesh:mesh, vel:dir.multiplyScalar(PLAYER_BULLET_SPEED), from:'player'});
+            return;
+        }
+
         const from = new THREE.Vector3(); player.weapon.children[1].getWorldPosition(from);
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
         const mesh=new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({color:0x00aaff}));
@@ -2645,7 +2777,7 @@ if (stretchMode.active && stretchMode.wall) {
 
 
     function update(dt){
-      if (gameMode === 'playing' && (look.deltaX !== 0 || look.deltaY !== 0)) {
+      if (gameMode === 'playing' && cameraSettings.viewMode !== ViewModes.TOPDOWN && (look.deltaX !== 0 || look.deltaY !== 0)) {
           const clampedDeltaX = clamp(look.deltaX, -100, 100);
           const clampedDeltaY = clamp(look.deltaY, -100, 100);
           look.yaw -= clampedDeltaX * look.sens;
@@ -2728,7 +2860,8 @@ if (stretchMode.active && stretchMode.wall) {
 
        // Waypoint Mode Aiming Logic (Updated for Task 1: Include King Kong)
        if (gameMode === 'playing' && currentGameMode === GameModes.WAYPOINT) {
-            crosshairRaycaster.setFromCamera({ x: 0, y: 0 }, camera);
+            const aimNDC = (cameraSettings.viewMode === ViewModes.TOPDOWN && topDownAim.hasPointer) ? topDownAim.ndc : { x: 0, y: 0 };
+            crosshairRaycaster.setFromCamera(aimNDC, camera);
             const intersects = crosshairRaycaster.intersectObjects(turrets.map(t => t.group), true);
             let foundGroup = intersects.length > 0 ? intersects[0].object : null;
             if(foundGroup) {
@@ -2956,7 +3089,12 @@ if (stretchMode.active && stretchMode.wall) {
           // Arena boundaries
           player.pos.x=clamp(player.pos.x, -arena.w/2 + PLAYER_RADIUS, arena.w/2 - PLAYER_RADIUS);
           player.pos.z=clamp(player.pos.z, -arena.d/2 + PLAYER_RADIUS, arena.d/2 - PLAYER_RADIUS);
-          camera.position.set(player.pos.x, player.pos.y, player.pos.z);
+          if (cameraSettings.viewMode === ViewModes.TOPDOWN) {
+              updateTopDownCamera();
+              updatePlayerAvatar();
+          } else {
+              camera.position.set(player.pos.x, player.pos.y, player.pos.z);
+          }
 
           if (currentGameMode === GameModes.WAYPOINT) {
                 const targetWp = waypoints.find(wp => wp.order === nextWaypointIndex);
@@ -3079,8 +3217,26 @@ if (stretchMode.active && stretchMode.wall) {
       updatePathVisuals(null);
 
       objectCounter = 0;
+
+      // Remember meta so the editor UI can reflect loaded levels (name/mode/timer/camera)
+      loadedLevelMeta = {
+          name: level.name,
+          gameMode: normalizeGameMode(level.gameMode),
+          timer: level.timer,
+          camera: level.camera
+      };
+
       arena.w=parseFloat(level.arenaSize?.width ?? 90);
       arena.d=parseFloat(level.arenaSize?.depth ?? 70);
+
+      // Camera settings (defaults apply for older levels)
+      const cam = level.camera || {};
+      // View mode (default first-person). Backward compatible with legacy levels where gameMode was 'topdown'.
+      cameraSettings.viewMode = (cam.viewMode === ViewModes.TOPDOWN || cam.viewMode === 'topdown' || level.gameMode === 'topdown') ? ViewModes.TOPDOWN : ViewModes.FIRST;
+      cameraSettings.topDownAngle = clamp(parseFloat(cam.topDownAngle ?? DEFAULT_CAMERA_SETTINGS.topDownAngle), 10, 89);
+      cameraSettings.topDownDistance = clamp(parseFloat(cam.topDownDistance ?? DEFAULT_CAMERA_SETTINGS.topDownDistance), 5, 200);
+      cameraSettings.topDownYaw = parseFloat(cam.topDownYaw ?? DEFAULT_CAMERA_SETTINGS.topDownYaw);
+
       arena.groundStyle = level.ground?.style || 'checkered';
       arena.groundColor = level.ground?.color || '#FFFFFF';
       arena.groundPatternColor = level.ground?.patternColor || '#999999';
@@ -3203,7 +3359,7 @@ if (stretchMode.active && stretchMode.wall) {
         // Set player HP from editor input or default
         player.hp = parseInt(playerHpInput.value, 10) || 100;
         timeLeft = parseFloat(level.timer ?? 60);
-        currentGameMode = level.gameMode || GameModes.ELIM;
+        currentGameMode = normalizeGameMode(level.gameMode);
         totalWaypointsInLevel = (level.waypoints || []).length;
         loadLevel(level);
         if (currentGameMode === GameModes.WAYPOINT) {
@@ -3211,7 +3367,19 @@ if (stretchMode.active && stretchMode.wall) {
         }
         showHUD(true);
         hidePlayerMarker();
-        tryRequestPointerLock();
+
+        // Third-person top-down mode uses free mouse (no pointer lock) and shows a player avatar
+        if (cameraSettings.viewMode === ViewModes.TOPDOWN) {
+            setPlayerAvatarVisible(true);
+            try { document.exitPointerLock(); } catch(e){}
+            lockHint.style.display = 'none';
+            if (topDownAim.hasPointer) setCrosshairToClientXY(topDownAim.clientX, topDownAim.clientY);
+        } else {
+            if (playerAvatar) playerAvatar.visible = false;
+            resetCrosshairPosition();
+            tryRequestPointerLock();
+        }
+
         gameStartTime = clock.elapsedTime;
     }
 
@@ -3221,6 +3389,8 @@ if (stretchMode.active && stretchMode.wall) {
         gameMode = 'menu'; // Neutral state
         showHUD(false);
         try { document.exitPointerLock(); } catch(e){}
+        if (playerAvatar) playerAvatar.visible = false;
+        resetCrosshairPosition();
 
         if (isTestingFromEditor) {
             setupEditor(lastLevel, editingBuiltInKey, editingCustomSlot);
@@ -3253,7 +3423,13 @@ if (stretchMode.active && stretchMode.wall) {
         } else if (gameMode === 'paused') {
             gameMode = 'playing';
             pausePanel.style.display = 'none';
-            tryRequestPointerLock();
+            if (cameraSettings.viewMode !== ViewModes.TOPDOWN) {
+                resetCrosshairPosition();
+                tryRequestPointerLock();
+            } else {
+                lockHint.style.display = 'none';
+                if (topDownAim.hasPointer) setCrosshairToClientXY(topDownAim.clientX, topDownAim.clientY);
+            }
             showHUD(true);
         }
     }
@@ -3342,6 +3518,12 @@ if (stretchMode.active && stretchMode.wall) {
             gameMode: gameModeSel.value,
             timer: parseFloat(levelTimeInput.value || 60),
             arenaSize: { width: parseFloat(arenaWInput.value || 90), depth: parseFloat(arenaDInput.value || 70) },
+            camera: {
+                viewMode: cameraSettings.viewMode,
+                topDownAngle: cameraSettings.topDownAngle,
+                topDownDistance: cameraSettings.topDownDistance,
+                topDownYaw: cameraSettings.topDownYaw
+            },
             ground: {
                 style: arena.groundStyle, color: arena.groundColor, patternColor: arena.groundPatternColor,
                 textureScale: arena.groundTextureScale, customTextureURL: arena.groundCustomTextureURL
@@ -3396,6 +3578,12 @@ if (stretchMode.active && stretchMode.wall) {
         $('ground-texture-clear-btn').style.display = isCustom ? 'inline-block' : 'none';
     }
 
+    function syncTopDownCameraUI() {
+        if (!topDownCameraSettingsRow) return;
+        const enabled = !!(topDownViewChk && topDownViewChk.checked);
+        topDownCameraSettingsRow.style.display = enabled ? 'flex' : 'none';
+    }
+
     // Updated: Load editor UI state
     function enterEditor(){
         gameMode = 'editing';
@@ -3403,11 +3591,24 @@ if (stretchMode.active && stretchMode.wall) {
         editorPanel.style.display = 'block';
         showHUD(false);
         try{
+            // Ensure basic meta fields reflect the last loaded level (important for Load/Import)
+            if (loadedLevelMeta) {
+                if (loadedLevelMeta.name) levelNameInput.value = loadedLevelMeta.name;
+                if (loadedLevelMeta.gameMode) gameModeSel.value = loadedLevelMeta.gameMode;
+                if (loadedLevelMeta.timer !== undefined && loadedLevelMeta.timer !== null) levelTimeInput.value = loadedLevelMeta.timer;
+                // camera settings are loaded via loadLevel() into cameraSettings
+            }
+
             const level = currentLevelData();
             gameModeSel.value = level.gameMode;
             levelTimeInput.value = level.timer;
             arenaWInput.value = arena.w;
             arenaDInput.value = arena.d;
+            // Top-down camera settings
+            if (topDownAngleInput) topDownAngleInput.value = cameraSettings.topDownAngle;
+            if (topDownDistanceInput) topDownDistanceInput.value = cameraSettings.topDownDistance;
+            if (topDownViewChk) topDownViewChk.checked = (cameraSettings.viewMode === ViewModes.TOPDOWN);
+            syncTopDownCameraUI();
             groundStyleSel.value = arena.groundStyle;
             groundColorInput.value = arena.groundColor;
             groundPatternColorInput.value = arena.groundPatternColor;
@@ -3564,6 +3765,28 @@ if (stretchMode.active && stretchMode.wall) {
         btnWallDragMode.addEventListener('click', () => setWallEditMode('drag'));
         btnWallStretchMode.addEventListener('click', () => setWallEditMode('stretch'));
         btnWallExtendMode.addEventListener('click', () => setWallEditMode('extend'));
+
+        // Top-down view settings (independent of game mode)
+        if (topDownViewChk) {
+            topDownViewChk.addEventListener('change', () => {
+                cameraSettings.viewMode = topDownViewChk.checked ? ViewModes.TOPDOWN : ViewModes.FIRST;
+                syncTopDownCameraUI();
+            });
+        }
+        if (topDownAngleInput) {
+            topDownAngleInput.addEventListener('input', () => {
+                const v = clamp(parseFloat(topDownAngleInput.value) || DEFAULT_CAMERA_SETTINGS.topDownAngle, 10, 89);
+                cameraSettings.topDownAngle = v;
+                topDownAngleInput.value = v;
+            });
+        }
+        if (topDownDistanceInput) {
+            topDownDistanceInput.addEventListener('input', () => {
+                const v = clamp(parseFloat(topDownDistanceInput.value) || DEFAULT_CAMERA_SETTINGS.topDownDistance, 5, 200);
+                cameraSettings.topDownDistance = v;
+                topDownDistanceInput.value = v;
+            });
+        }
 
         const posUpdater = () => {
             const sel = editorData.selection;
@@ -3822,7 +4045,7 @@ if (stretchMode.active && stretchMode.wall) {
       $('open-editor').addEventListener('click', ()=> {
           // Updated Blank Level Defaults
           const blankLevel = {
-              name: "新关卡", gameMode: GameModes.ELIM, timer: 60, arenaSize: { width: 90, depth: 70 }, playerStart: { x: 0, z: 20 },
+              name: "新关卡", gameMode: GameModes.ELIM, timer: 60, arenaSize: { width: 90, depth: 70 }, camera: { viewMode: ViewModes.FIRST, topDownAngle: DEFAULT_CAMERA_SETTINGS.topDownAngle, topDownDistance: DEFAULT_CAMERA_SETTINGS.topDownDistance, topDownYaw: DEFAULT_CAMERA_SETTINGS.topDownYaw }, playerStart: { x: 0, z: 20 },
               ground: { style: 'checkered', color: '#FFFFFF', patternColor: '#999999', textureScale: 5 },
               environment: {
                   dayNightCycleEnabled: false, cycleDuration: 120, sunIntensityMultiplier: 0.1,
