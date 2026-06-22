@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Game Dodge — Enhanced v153 (Wall Extend + Stretch Modes)</title>
-  <link rel="stylesheet" href="./src/styles.css" />
+  <link rel="stylesheet" href="./src/styles.css?v=20260622" />
   <script type="importmap">
   {
     "imports": {
@@ -52,26 +52,7 @@
 
       <div>
         <h4 data-i18n="menu_custom_levels">自定义关卡</h4>
-        <div class="level-row" id="custom-level-row-1" style="display:none;">
-            <button class="btn" id="play-custom-1"></button>
-            <button class="btn" id="edit-custom-1" data-i18n="menu_edit">编辑</button>
-        </div>
-        <div class="level-row" id="custom-level-row-2" style="display:none;">
-             <button class="btn" id="play-custom-2"></button>
-             <button class="btn" id="edit-custom-2" data-i18n="menu_edit">编辑</button>
-        </div>
-        <div class="level-row" id="custom-level-row-3" style="display:none;">
-             <button class="btn" id="play-custom-3"></button>
-             <button class="btn" id="edit-custom-3" data-i18n="menu_edit">编辑</button>
-        </div>
-        <div class="level-row" id="custom-level-row-4" style="display:none;">
-             <button class="btn" id="play-custom-4"></button>
-             <button class="btn" id="edit-custom-4" data-i18n="menu_edit">编辑</button>
-        </div>
-        <div class="level-row" id="custom-level-row-5" style="display:none;">
-             <button class="btn" id="play-custom-5"></button>
-             <button class="btn" id="edit-custom-5" data-i18n="menu_edit">编辑</button>
-        </div>
+        <div id="custom-level-list"></div>
       </div>
 
       <div class="sep"></div>
@@ -108,13 +89,13 @@
         <button class="btn" id="btn-exit" data-i18n="editor_exit">返回菜单</button>
 
         <button class="btn primary" id="btn-save-main" data-i18n="editor_save">保存</button>
+        <button class="btn" id="btn-save-new" data-i18n="editor_save_as_new">另存为新关卡</button>
 
         <label><span data-i18n="editor_level_name">关卡名称</span> <input id="level-name" type="text" placeholder="输入名称" style="width:120px;"/></label>
 
         <div id="slot-management" style="display:flex; gap:8px; align-items:center;">
             <label><span data-i18n="editor_slot">槽位</span>
               <select id="save-slot" style="width:auto;">
-                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
               </select>
             </label>
             <button class="btn" id="btn-load-slot" data-i18n="editor_load">加载</button>
@@ -406,6 +387,6 @@
     <div id="lockHint" class="panel" data-i18n="lock_hint"></div>
   </div>
 
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="./src/main.js?v=20260622"></script>
 </body>
 </html>

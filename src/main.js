@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createI18n } from './i18n.js';
-import { createLevels } from './levels.js';
+import { createI18n } from './i18n.js?v=20260622';
+import { createLevels } from './levels.js?v=20260622';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -24,7 +24,7 @@ const PLAYER_BULLET_SPEED = 150;
 const PLAYER_RADIUS = 0.5; // For collision detection
 const GameModes = { ELIM:'elimination', SURV:'survival', WAYPOINT:'waypoint' };
 const ViewModes = { FIRST:'firstperson', TOPDOWN:'topdown' };
-const CUSTOM_SLOTS = 5;
+const CUSTOM_SLOTS = 20;
 const VERSION = 153; // Updated version
 const SLOT_KEY = (i)=> `gd_menu_custom_level_v${VERSION}_slot${i}`;
 const SLOT_NAME_KEY = (i)=> `gd_menu_custom_name_v${VERSION}_slot${i}`;
@@ -138,7 +138,7 @@ const btnWallExtendMode = $('btn-wall-extend-mode');
 const wallExtendInstructions = $('wall-extend-instructions');
 
 const waypointPanel = $('waypoint-panel'), waypointOrderInput = $('waypoint-order'), waypointSizeInput = $('waypoint-size'), waypointColorInput = $('waypoint-color'), waypointIntensityInput = $('waypoint-intensity'), waypointTextColorInput = $('waypoint-textColor');
-const saveSlotSel = $('save-slot'), levelNameInput = $('level-name');
+const saveSlotSel = $('save-slot'), levelNameInput = $('level-name'), customLevelList = $('custom-level-list');
 const objList = $('obj-list');
 const turretStyleSel = $('turret-style');
 const groundStyleSel = $('ground-style'), groundColorInput = $('ground-color');
@@ -2967,12 +2967,8 @@ function setupEditor(level, builtInKey = null, customSlot = null){
         camera.position.set(0, 50, 40);
         orbitControls.update();
     }
-    if (customSlot) {
-        saveSlotSel.value = customSlot;
-        saveSlotSel.disabled = true;
-    } else {
-        saveSlotSel.disabled = false;
-    }
+    populateSaveSlotOptions(customSlot || findFirstEmptyCustomSlot() || 1);
+    saveSlotSel.disabled = !!customSlot;
     ensurePlayerMarker();
     playerMarker.visible = true;
     loadLevel(level);
@@ -3029,6 +3025,57 @@ function findNextAvailableWaypointOrder() {
         order++;
     }
     return order;
+}
+
+function readCustomLevel(slot) {
+    const txt = localStorage.getItem(SLOT_KEY(slot));
+    if (!txt) return null;
+    try {
+        return JSON.parse(txt);
+    } catch (e) {
+        console.error(`Error reading custom level slot ${slot}:`, e);
+        return null;
+    }
+}
+
+function customLevelName(slot) {
+    return localStorage.getItem(SLOT_NAME_KEY(slot)) || `${T('menu_custom_levels')} ${slot}`;
+}
+
+function findFirstEmptyCustomSlot() {
+    for (let i = 1; i <= CUSTOM_SLOTS; i++) {
+        if (!localStorage.getItem(SLOT_KEY(i))) return i;
+    }
+    return null;
+}
+
+function populateSaveSlotOptions(preferredSlot = null) {
+    if (!saveSlotSel) return;
+    const currentValue = String(preferredSlot || saveSlotSel.value || findFirstEmptyCustomSlot() || 1);
+    saveSlotSel.innerHTML = '';
+    for (let i = 1; i <= CUSTOM_SLOTS; i++) {
+        const option = document.createElement('option');
+        option.value = String(i);
+        const occupied = !!localStorage.getItem(SLOT_KEY(i));
+        option.textContent = occupied ? `${i}: ${customLevelName(i)}` : `${i}: ${T('editor_empty_slot')}`;
+        saveSlotSel.appendChild(option);
+    }
+    saveSlotSel.value = currentValue;
+}
+
+function saveCustomLevel(data, options = {}) {
+    let slot = options.saveAsNew ? findFirstEmptyCustomSlot() : (editingCustomSlot || parseInt(saveSlotSel.value, 10));
+    if (!slot || slot < 1 || slot > CUSTOM_SLOTS) slot = findFirstEmptyCustomSlot();
+    if (!slot) {
+        alert(T('alert_custom_slots_full'));
+        return false;
+    }
+    localStorage.setItem(SLOT_KEY(slot), JSON.stringify(data));
+    localStorage.setItem(SLOT_NAME_KEY(slot), data.name);
+    editingCustomSlot = slot;
+    populateSaveSlotOptions(slot);
+    saveSlotSel.disabled = true;
+    return true;
 }
 
 // Updated: Export level data including new wall format and sky colors
@@ -3430,10 +3477,11 @@ function bindEditorEvents(){
 
     $('btn-test').addEventListener('click',()=>startGame(currentLevelData(), true));
     // Updated Exit button logic
-    $('btn-exit').addEventListener('click',()=>{ gameMode='menu'; menu.classList.remove('hidden'); editorPanel.style.display='none'; if(orbitControls) orbitControls.enabled=false; hidePlayerMarker(); updatePathVisuals(null); setWallEditMode('drag'); clearHandles(); editingCustomSlot = null; saveSlotSel.disabled = false;});
+    $('btn-exit').addEventListener('click',()=>{ gameMode='menu'; menu.classList.remove('hidden'); editorPanel.style.display='none'; if(orbitControls) orbitControls.enabled=false; hidePlayerMarker(); updatePathVisuals(null); setWallEditMode('drag'); clearHandles(); editingCustomSlot = null; saveSlotSel.disabled = false; populateSaveSlotOptions();});
 
-    $('btn-save-main').addEventListener('click', ()=>{ const data=currentLevelData(); try{ if (editingBuiltInKey) { localStorage.setItem(MODIFIED_BUILTIN_KEY_PREFIX + editingBuiltInKey, JSON.stringify(data)); levels[editingBuiltInKey] = data; } else { const slot = editingCustomSlot || saveSlotSel.value; localStorage.setItem(SLOT_KEY(slot), JSON.stringify(data)); localStorage.setItem(SLOT_NAME_KEY(slot), data.name); } refreshCustomMenuButtons(); } catch(e) { alert(T('alert_save_failed', e.message)); } });
-    $('btn-load-slot').addEventListener('click',()=>{ const slot=saveSlotSel.value; const txt=localStorage.getItem(SLOT_KEY(slot)); if (txt) { loadLevel(JSON.parse(txt)); enterEditor(); } else { alert(T('alert_slot_empty')); } });
+    $('btn-save-main').addEventListener('click', ()=>{ const data=currentLevelData(); try{ if (editingBuiltInKey) { localStorage.setItem(MODIFIED_BUILTIN_KEY_PREFIX + editingBuiltInKey, JSON.stringify(data)); levels[editingBuiltInKey] = data; } else if (!saveCustomLevel(data)) { return; } refreshCustomMenuButtons(); } catch(e) { alert(T('alert_save_failed', e.message)); } });
+    $('btn-save-new').addEventListener('click', ()=>{ const data=currentLevelData(); try{ editingBuiltInKey = null; if (!saveCustomLevel(data, { saveAsNew: true })) return; refreshCustomMenuButtons(); } catch(e) { alert(T('alert_save_failed', e.message)); } });
+    $('btn-load-slot').addEventListener('click',()=>{ const slot=parseInt(saveSlotSel.value, 10); const levelData=readCustomLevel(slot); if (levelData) { setupEditor(levelData, null, slot); } else { alert(T('alert_slot_empty')); } });
     arenaWInput.addEventListener('input',()=>{arena.w=parseFloat(arenaWInput.value); refreshColumns(); refreshLighthouses();});
     arenaDInput.addEventListener('input',()=>{arena.d=parseFloat(arenaDInput.value); refreshColumns(); refreshLighthouses();});
     groundStyleSel.addEventListener('change', () => { arena.groundStyle = groundStyleSel.value; updateGroundTexture(arena.groundStyle, arena.groundColor, arena.groundPatternColor); syncGroundUI(); });
@@ -3510,20 +3558,29 @@ function loadModifiedBuiltInLevels() {
 }
 
 function refreshCustomMenuButtons(){
+    populateSaveSlotOptions(editingCustomSlot || saveSlotSel.value || findFirstEmptyCustomSlot() || 1);
+    if (!customLevelList) return;
+    customLevelList.innerHTML = '';
     const startText = T('menu_start_custom');
     for (let i=1;i<=CUSTOM_SLOTS;i++){
-        const row = $(`custom-level-row-${i}`);
-        const playBtn=$(`play-custom-${i}`);
-        if (!row || !playBtn) continue;
+        const levelData = readCustomLevel(i);
+        if (!levelData) continue;
 
-        const txt=localStorage.getItem(SLOT_KEY(i));
-        if (txt){
-            const nm=localStorage.getItem(SLOT_NAME_KEY(i)) || `${T('menu_custom_levels')} ${i}`;
-            row.style.display = 'flex';
-            playBtn.textContent=`${startText} ${i}：${nm}`;
-        } else {
-            row.style.display = 'none';
-        }
+        const row = document.createElement('div');
+        row.className = 'level-row';
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'btn';
+        playBtn.textContent = `${startText} ${i}: ${customLevelName(i)}`;
+        playBtn.addEventListener('click', () => startGame(deepClone(levelData)));
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn';
+        editBtn.textContent = T('menu_edit');
+        editBtn.addEventListener('click', () => setupEditor(deepClone(levelData), null, i));
+
+        row.append(playBtn, editBtn);
+        customLevelList.appendChild(row);
     }
 }
 
@@ -3582,22 +3639,5 @@ function refreshCustomMenuButtons(){
 
   updateUIText();
 
-  for (let i=1;i<=CUSTOM_SLOTS;i++){
-      const playBtn=$(`play-custom-${i}`);
-      const editBtn=$(`edit-custom-${i}`);
-      if (playBtn) playBtn.addEventListener('click', ()=>{
-          const txt=localStorage.getItem(SLOT_KEY(i));
-          if (txt) startGame(JSON.parse(txt));
-          else alert(T('alert_slot_empty'));
-      });
-      if (editBtn) editBtn.addEventListener('click', ()=>{
-          const txt=localStorage.getItem(SLOT_KEY(i));
-          if (txt) {
-              const levelData = JSON.parse(txt);
-              setupEditor(levelData, null, i);
-          } else {
-              alert(T('alert_slot_empty'));
-          }
-      });
-  }
+  refreshCustomMenuButtons();
 })();

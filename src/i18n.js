@@ -23,9 +23,9 @@ export function createI18n(VERSION) {
             lock_hint: '点击画布进入鼠标模式；或按住 <b>右键</b> 拖动也可临时旋转视角。',
 
             // Editor
-            editor_title: '编辑器', editor_test: '测试关卡', editor_exit: '返回菜单', editor_save: '保存', editor_load: '加载',
+            editor_title: '编辑器', editor_test: '测试关卡', editor_exit: '返回菜单', editor_save: '保存', editor_save_as_new: '另存为新关卡', editor_load: '加载',
             editor_export: '导出JSON', editor_import: '导入JSON',
-            editor_level_name: '关卡名称', editor_slot: '槽位', editor_object_list: '对象列表', editor_level_settings: '关卡设置',
+            editor_level_name: '关卡名称', editor_slot: '槽位', editor_empty_slot: '空槽位', editor_object_list: '对象列表', editor_level_settings: '关卡设置',
             editor_mode: '模式', editor_mode_elimination: '炮台歼灭模式', editor_mode_survival: '倒计时模式', editor_mode_waypoint: '不准动模式', editor_mode_topdown: '第三人称俯瞰模式',
             editor_time: '时间(秒)', editor_player_hp: '玩家HP', editor_arena_w: '场地宽W', editor_arena_d: '场地深D', editor_topdown_view_enabled: '第三人称俯瞰视角', editor_topdown_angle: '俯瞰角度(°)', editor_topdown_distance: '俯瞰距离', editor_environment: '环境设置',
             editor_day_night_enabled: '启用昼夜循环', editor_cycle_duration: '循环时长(秒)', editor_sun_intensity: '日照强度',
@@ -81,7 +81,8 @@ export function createI18n(VERSION) {
             editor_add_new: '添加新对象', editor_delete_selected: '删除选中对象',
 
             alert_select_turret: '请先选中一个炮台', alert_select_object: '请先选中一个对象', alert_player_cannot_delete: '玩家起点不能删除，但可以移动。',
-            alert_save_failed: (msg) => `保存失败：${msg}`, alert_slot_empty: '该槽位没有存档', alert_invalid_json: '导入的JSON文件格式不正确，请检查文件内容。',
+            alert_save_failed: (msg) => `保存失败：${msg}`, alert_slot_empty: '该槽位没有存档', alert_custom_slots_full: '自定义关卡槽位已满，请覆盖一个已有槽位或导出关卡备份。',
+            alert_invalid_json: '导入的JSON文件格式不正确，请检查文件内容。',
             alert_waypoint_order_exists: (order) => `编号为 ${order} 的路标已存在。请使用唯一的编号。`
         },
         'en-US': {
@@ -107,9 +108,9 @@ export function createI18n(VERSION) {
             lock_hint: 'Click the canvas to enter mouse mode; or hold <b>Right Button</b> and drag to temporarily rotate the view.',
 
             // Editor
-            editor_title: 'Editor', editor_test: 'Test Level', editor_exit: 'Back to Menu', editor_save: 'Save', editor_load: 'Load',
+            editor_title: 'Editor', editor_test: 'Test Level', editor_exit: 'Back to Menu', editor_save: 'Save', editor_save_as_new: 'Save as New', editor_load: 'Load',
             editor_export: 'Export JSON', editor_import: 'Import JSON',
-            editor_level_name: 'Level Name', editor_slot: 'Slot', editor_object_list: 'Object List', editor_level_settings: 'Level Settings',
+            editor_level_name: 'Level Name', editor_slot: 'Slot', editor_empty_slot: 'Empty Slot', editor_object_list: 'Object List', editor_level_settings: 'Level Settings',
             editor_mode: 'Mode', editor_mode_elimination: 'Elimination Mode', editor_mode_survival: 'Survival Mode', editor_mode_waypoint: 'Waypoint Mode', editor_mode_topdown: 'Third-person Top-down',
             editor_time: 'Time (s)', editor_player_hp: 'Player HP', editor_arena_w: 'Arena W', editor_arena_d: 'Arena D', editor_topdown_view_enabled: 'Third-person Top-down View', editor_topdown_angle: 'Top-down Angle (°)', editor_topdown_distance: 'Top-down Distance', editor_environment: 'Environment',
             editor_day_night_enabled: 'Enable Day/Night Cycle', editor_cycle_duration: 'Cycle Duration (s)', editor_sun_intensity: 'Sun Intensity',
@@ -166,7 +167,8 @@ export function createI18n(VERSION) {
             editor_add_new: 'Add New Object', editor_delete_selected: 'Delete Selected',
 
             alert_select_turret: 'Please select a turret first.', alert_select_object: 'Please select an object first.', alert_player_cannot_delete: 'Player start point cannot be deleted, but can be moved.',
-            alert_save_failed: (msg) => `Save failed: ${msg}`, alert_slot_empty: 'This slot is empty.', alert_invalid_json: 'The imported JSON file has an incorrect format. Please check the file content.',
+            alert_save_failed: (msg) => `Save failed: ${msg}`, alert_slot_empty: 'This slot is empty.', alert_custom_slots_full: 'All custom level slots are full. Overwrite an existing slot or export a backup first.',
+            alert_invalid_json: 'The imported JSON file has an incorrect format. Please check the file content.',
             alert_waypoint_order_exists: (order) => `A waypoint with order ${order} already exists. Please use a unique number.`
         }
     };
