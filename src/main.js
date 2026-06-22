@@ -193,6 +193,140 @@ let textureUploadTarget = null; // 'ground' or 'wall' or 'column' or 'lighthouse
 // Internationalization (i18n) Definitions
 const i18n = createI18n(VERSION);
 
+// ---------- Sound Effects ----------
+const sound = (() => {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    let ctx = null;
+    let master = null;
+    const lastPlayed = new Map();
+
+    function getContext() {
+        if (!AudioContextCtor) return null;
+        if (!ctx) {
+            ctx = new AudioContextCtor();
+            master = ctx.createGain();
+            master.gain.value = 0.28;
+            master.connect(ctx.destination);
+        }
+        return ctx;
+    }
+
+    function unlock() {
+        const audio = getContext();
+        if (audio && audio.state === 'suspended') audio.resume();
+    }
+
+    function canPlay(name, cooldown = 0) {
+        const audio = getContext();
+        if (!audio) return false;
+        const now = audio.currentTime;
+        const previous = lastPlayed.get(name) || -Infinity;
+        if (now - previous < cooldown) return false;
+        lastPlayed.set(name, now);
+        return true;
+    }
+
+    function playTone({ freq, endFreq = freq, duration = 0.12, type = 'sine', volume = 0.35, attack = 0.008, delay = 0 }) {
+        const audio = getContext();
+        if (!audio || !master) return;
+        const start = audio.currentTime + delay;
+        const end = start + duration;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(Math.max(1, freq), start);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), end);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), start + attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+        osc.connect(gain).connect(master);
+        osc.start(start);
+        osc.stop(end + 0.03);
+    }
+
+    function playNoise({ duration = 0.14, volume = 0.3, filterFreq = 900, filterType = 'lowpass', delay = 0 }) {
+        const audio = getContext();
+        if (!audio || !master) return;
+        const start = audio.currentTime + delay;
+        const buffer = audio.createBuffer(1, Math.max(1, Math.floor(audio.sampleRate * duration)), audio.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            const fade = 1 - i / data.length;
+            data[i] = (Math.random() * 2 - 1) * fade;
+        }
+
+        const source = audio.createBufferSource();
+        const filter = audio.createBiquadFilter();
+        const gain = audio.createGain();
+        source.buffer = buffer;
+        filter.type = filterType;
+        filter.frequency.setValueAtTime(filterFreq, start);
+        gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+        source.connect(filter).connect(gain).connect(master);
+        source.start(start);
+        source.stop(start + duration + 0.03);
+    }
+
+    function play(name) {
+        unlock();
+        switch (name) {
+            case 'playerShoot':
+                if (!canPlay(name, 0.04)) return;
+                playTone({ freq: 760, endFreq: 220, duration: 0.11, type: 'square', volume: 0.12 });
+                playNoise({ duration: 0.055, volume: 0.08, filterFreq: 1800, filterType: 'highpass' });
+                break;
+            case 'npcShoot':
+                if (!canPlay(name, 0.08)) return;
+                playTone({ freq: 180, endFreq: 95, duration: 0.16, type: 'sawtooth', volume: 0.12 });
+                playNoise({ duration: 0.08, volume: 0.09, filterFreq: 900 });
+                break;
+            case 'npcAoe':
+                if (!canPlay(name, 0.4)) return;
+                playTone({ freq: 90, endFreq: 42, duration: 0.42, type: 'sawtooth', volume: 0.18 });
+                playNoise({ duration: 0.24, volume: 0.16, filterFreq: 520 });
+                break;
+            case 'npcHit':
+                if (!canPlay(name, 0.035)) return;
+                playTone({ freq: 520, endFreq: 180, duration: 0.09, type: 'triangle', volume: 0.13 });
+                playNoise({ duration: 0.045, volume: 0.08, filterFreq: 1600, filterType: 'highpass' });
+                break;
+            case 'playerHit':
+                if (!canPlay(name, 0.12)) return;
+                playTone({ freq: 130, endFreq: 58, duration: 0.2, type: 'sawtooth', volume: 0.18 });
+                playNoise({ duration: 0.12, volume: 0.12, filterFreq: 700 });
+                break;
+            case 'waypoint':
+                if (!canPlay(name, 0.15)) return;
+                playTone({ freq: 523.25, endFreq: 659.25, duration: 0.11, type: 'sine', volume: 0.13 });
+                playTone({ freq: 783.99, endFreq: 1046.5, duration: 0.18, type: 'sine', volume: 0.12, delay: 0.08 });
+                break;
+            case 'victory':
+                if (!canPlay(name, 1.0)) return;
+                [523.25, 659.25, 783.99, 1046.5].forEach((freq, index) => {
+                    playTone({ freq, endFreq: freq * 1.01, duration: 0.22, type: 'triangle', volume: 0.13, delay: index * 0.13 });
+                });
+                playNoise({ duration: 0.45, volume: 0.08, filterFreq: 2400, filterType: 'highpass', delay: 0.18 });
+                break;
+            case 'wallBump':
+                if (!canPlay(name, 0.22)) return;
+                playTone({ freq: 100, endFreq: 70, duration: 0.08, type: 'triangle', volume: 0.12 });
+                playNoise({ duration: 0.06, volume: 0.08, filterFreq: 380 });
+                break;
+            case 'npcFrozen':
+                if (!canPlay(name, 0.28)) return;
+                playTone({ freq: 860, endFreq: 1220, duration: 0.2, type: 'sine', volume: 0.1 });
+                playTone({ freq: 1720, endFreq: 1450, duration: 0.16, type: 'triangle', volume: 0.07, delay: 0.05 });
+                break;
+        }
+    }
+
+    return { unlock, play };
+})();
+
 // i18n Helper Functions
 function T(key, ...args) {
     const langTranslations = i18n[currentLang] || i18n['zh-CN'];
@@ -1997,6 +2131,7 @@ function fireFromTurret(t){
     mesh.position.copy(from);
     scene.add(mesh);
     bullets.push({mesh:mesh, vel:dir.multiplyScalar(t.bps), from:'turret'});
+    sound.play('npcShoot');
 }
 
 function playerShoot(){
@@ -2017,6 +2152,7 @@ function playerShoot(){
         mesh.position.copy(from);
         scene.add(mesh);
         bullets.push({mesh:mesh, vel:dir.multiplyScalar(PLAYER_BULLET_SPEED), from:'player'});
+        sound.play('playerShoot');
         return;
     }
 
@@ -2026,6 +2162,7 @@ function playerShoot(){
     mesh.position.copy(from);
     scene.add(mesh);
     bullets.push({mesh:mesh, vel:dir.multiplyScalar(PLAYER_BULLET_SPEED), from:'player'});
+    sound.play('playerShoot');
 }
 
 // ---------- Game Loop ----------
@@ -2110,6 +2247,7 @@ function checkPlayerCollision(newPos) {
 // AOE targets player location, includes warning indicator and delayed explosion
 function triggerKingKongAoe(turret) {
     turret.lastAoeAttack = clock.getElapsedTime();
+    sound.play('npcAoe');
 
     // Target the player's current location on the ground
     const targetPosition = player.pos.clone();
@@ -2149,6 +2287,7 @@ function triggerKingKongAoe(turret) {
         if (distance < radius) {
             player.hp -= damage;
             flashDamage();
+            sound.play('playerHit');
             updateHUD();
             if (player.hp <= 0) endGame(false);
         }
@@ -2272,6 +2411,7 @@ function update(dt){
             // Pause new turret
             if (newlyAimedTurret) {
                 newlyAimedTurret.pausedByAim = true;
+                sound.play('npcFrozen');
                 const materials = newlyAimedTurret.group.userData.materials;
                 const { mat, darkMat, emat } = materials;
 
@@ -2455,13 +2595,15 @@ function update(dt){
         const forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); forward.y=0; forward.normalize();
         const right=new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize();
         const move=new THREE.Vector3().addScaledVector(forward,fwdInput).addScaledVector(right,rightInput).normalize().multiplyScalar(player.speed*dt);
+        let bumpedWall = false;
 
         // Collision detection
         const potentialPos = player.pos.clone();
         potentialPos.x += move.x;
-        if (checkPlayerCollision(potentialPos)) { potentialPos.x = player.pos.x; move.x = 0; }
+        if (checkPlayerCollision(potentialPos)) { potentialPos.x = player.pos.x; move.x = 0; bumpedWall = true; }
         potentialPos.z += move.z;
-        if (checkPlayerCollision(potentialPos)) { potentialPos.z = player.pos.z; move.z = 0; }
+        if (checkPlayerCollision(potentialPos)) { potentialPos.z = player.pos.z; move.z = 0; bumpedWall = true; }
+        if (bumpedWall) sound.play('wallBump');
         player.pos.add(move);
         player.vel.copy(move).divideScalar(dt||1/60);
       } else player.vel.set(0,0,0);
@@ -2482,6 +2624,7 @@ function update(dt){
                 targetWp.group.userData.light.intensity = targetWp.lightIntensity + Math.sin(clock.elapsedTime * 5) * 1;
                 if (player.pos.distanceTo(targetWp.group.position) < 2.0 * targetWp.size) {
                     playFireworksEffect(targetWp.group.position, targetWp.color);
+                    sound.play('waypoint');
                     activeEffects.push({ type: 'ascension', mesh: targetWp.group, startTime: clock.getElapsedTime(), duration: 1.2 });
                     const wpIndex = waypoints.findIndex(wp => wp.id === targetWp.id);
                     if(wpIndex > -1) waypoints.splice(wpIndex, 1);
@@ -2516,6 +2659,7 @@ function update(dt){
             const hitRadius = PLAYER_RADIUS + 0.3;
             if (closest.distanceTo(player.pos) < hitRadius) {
               player.hp-=10; flashDamage(); updateHUD();
+              sound.play('playerHit');
               if (player.hp<=0) endGame(false);
               scene.remove(b.mesh); bullets.splice(i,1);
               continue;
@@ -2529,6 +2673,7 @@ function update(dt){
             // Adjust hit distance based on turret model size
             const hitDist = t.kind === 'kingkong_turret' ? 3.0 : 1.2;
             if (b.mesh.position.distanceTo(t.group.position)<hitDist){
+              sound.play('npcHit');
               if (t.kind === 'kingkong_turret') {
                   t.hp--;
                   if (t.hp > 0) {
@@ -2717,6 +2862,7 @@ function loadLevel(level){
 
 // ---------- Game State ----------
 function startGame(level, isTesting = false) {
+    sound.unlock();
     lastLevel = deepClone(level);
     isTestingFromEditor = isTesting;
 
@@ -2758,6 +2904,7 @@ function startGame(level, isTesting = false) {
 
 function endGame(victory) {
     if (gameMode !== 'playing') return;
+    if (victory) sound.play('victory');
 
     gameMode = 'menu'; // Neutral state
     showHUD(false);
@@ -3332,7 +3479,9 @@ function bindEditorEvents(){
 
 // ---------- Input ----------
 function bindGameInputs(){
-  document.addEventListener('keydown', (e)=>{ const c=e.code.toLowerCase(); if(c.startsWith('key')) keys[c.slice(3)]=true; else if(c.startsWith('arrow')) keys[c.slice(5)]=true; });
+  document.addEventListener('pointerdown', () => sound.unlock());
+  document.addEventListener('touchstart', () => sound.unlock(), { passive: true });
+  document.addEventListener('keydown', (e)=>{ sound.unlock(); const c=e.code.toLowerCase(); if(c.startsWith('key')) keys[c.slice(3)]=true; else if(c.startsWith('arrow')) keys[c.slice(5)]=true; });
   document.addEventListener('keyup', (e)=>{ const c=e.code.toLowerCase(); if(c.startsWith('key')) keys[c.slice(3)]=false; else if(c.startsWith('arrow')) keys[c.slice(5)]=false; });
   document.addEventListener('mousedown', (e)=>{ if(gameMode==='playing' && e.button===0) playerShoot(); });
   document.addEventListener('keydown', (e)=>{ if(gameMode==='playing' && e.code==='Space') playerShoot(); });
