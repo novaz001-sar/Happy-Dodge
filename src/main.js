@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createI18n } from './i18n.js?v=20260622';
-import { createLevels } from './levels.js?v=20260622';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createI18n } from './i18n.js?v=20260627';
+import { createLevels } from './levels.js?v=20260627';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -22,6 +23,13 @@ const GLOBAL_TURRET_RATE_MULT = 3.0;
 const PLAYER_SPEED = 3;
 const PLAYER_BULLET_SPEED = 150;
 const PLAYER_RADIUS = 0.5; // For collision detection
+const KINGKONG_DEFAULT_AOE_DAMAGE = 25;
+const DRAGON_DEFAULT_HP = 10;
+const DRAGON_DEFAULT_AOE_DAMAGE = KINGKONG_DEFAULT_AOE_DAMAGE * 2;
+const DRAGON_DEFAULT_AOE_RADIUS = 12;
+const DRAGON_DEFAULT_AOE_INTERVAL = 5;
+const DRAGON_DEFAULT_TELEPORT_INTERVAL = 5;
+const DRAGON_MODEL_URL = './assets/models/orange-dragon-boss.glb?v=20260627';
 const GameModes = { ELIM:'elimination', SURV:'survival', WAYPOINT:'waypoint' };
 const ViewModes = { FIRST:'firstperson', TOPDOWN:'topdown' };
 const CUSTOM_SLOTS = 20;
@@ -153,6 +161,12 @@ const kingkongAoeDamageInput = $('kingkong-aoe-damage');
 const kingkongAoeIntervalInput = $('kingkong-aoe-interval');
 const kingkongGearSel = $('kingkong-gear');
 const kingkongPathEditBtn = $('kingkong-path-edit'), kingkongPathDoneBtn = $('kingkong-path-done'), kingkongPathClearBtn = $('kingkong-path-clear'), kingkongPathLoopChk = $('kingkong-path-loop');
+const dragonBossPanel = $('dragon-boss-panel');
+const dragonHpInput = $('dragon-hp');
+const dragonAoeRadiusInput = $('dragon-aoe-radius');
+const dragonAoeDamageInput = $('dragon-aoe-damage');
+const dragonAoeIntervalInput = $('dragon-aoe-interval');
+const dragonTeleportIntervalInput = $('dragon-teleport-interval');
 
 // Visual/Environment UI
 const dayNightEnabledChk = $('day-night-enabled');
@@ -188,6 +202,9 @@ const editorData={ selection:null, dragging:false, dragPlane:new THREE.Plane(new
 const pathEdit={ active:false, turret:null, markers:[], line:null };
 // Texture loading state
 const textureLoader = new THREE.TextureLoader();
+const gltfLoader = new GLTFLoader();
+let dragonModelTemplate = null;
+let dragonModelLoading = null;
 let textureUploadTarget = null; // 'ground' or 'wall' or 'column' or 'lighthouse'
 
 // Internationalization (i18n) Definitions
@@ -514,6 +531,7 @@ allObjects.forEach(obj => {
         case 'wall': typeName = T('obj_wall'); break;
         case 'turret': typeName = T('obj_turret'); break;
         case 'kingkong_turret': typeName = T('obj_turret_kingkong'); break;
+        case 'fire_dragon_boss': typeName = T('obj_fire_dragon_boss'); break;
         case 'waypoint': typeName = `${T('obj_waypoint')} #${obj.ref.order}`; break;
         default: typeName = obj.kind;
     }
@@ -581,6 +599,7 @@ function onSelectedChanged(){
   // Default hide all panels
   turretPanel.style.display='none';
   kingkongTurretPanel.style.display='none';
+  dragonBossPanel.style.display='none';
   wallPanel.style.display='none';
   waypointPanel.style.display='none';
   positionInputsRow.style.display = 'flex'; // Show position inputs by default
@@ -624,6 +643,16 @@ if (sel.kind==='turret'){
   if (!pathEdit.active) {
       updatePathVisuals(t);
   }
+} else if (sel.kind==='fire_dragon_boss') {
+  const t = sel.ref;
+  posX.value=t.group.position.x.toFixed(1); posZ.value=t.group.position.z.toFixed(1);
+  objKind.value='fire_dragon_boss';
+  dragonHpInput.value = t.hp;
+  dragonAoeRadiusInput.value = t.aoeRadius;
+  dragonAoeDamageInput.value = t.aoeDamage;
+  dragonAoeIntervalInput.value = t.aoeInterval;
+  dragonTeleportIntervalInput.value = t.teleportInterval;
+  dragonBossPanel.style.display='block';
 } else if (sel.kind==='wall'){
   // Walls use handles, so we hide the standard X/Z position inputs
   positionInputsRow.style.display = 'none';
@@ -908,7 +937,7 @@ if (dragging && dragTarget && !pathEdit.active){
       showWallHandles(wall); // Reposition handles
     } else if (dragTarget.kind === 'waypoint') {
       targetPos.y = 1.5 * dragTarget.ref.size;
-    } else if (dragTarget.kind === 'kingkong_turret') {
+    } else if (dragTarget.kind === 'kingkong_turret' || dragTarget.kind === 'fire_dragon_boss') {
         targetPos.y = 0;
     } else if (dragTarget.kind === 'turret') {
         targetPos.y = 0.1;
@@ -1836,13 +1865,284 @@ function updateKingKongTurretColor(turret, color) {
     }
 }
 
+function collectUniqueMaterials(root) {
+    const materials = [];
+    const seen = new Set();
+    root.traverse((child) => {
+        if (!child.material) return;
+        const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+        childMaterials.forEach((material) => {
+            if (material && !seen.has(material.uuid)) {
+                seen.add(material.uuid);
+                materials.push(material);
+            }
+        });
+    });
+    return materials;
+}
+
+function cloneMeshMaterials(root) {
+    root.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = Array.isArray(child.material)
+            ? child.material.map((material) => material.clone())
+            : child.material.clone();
+    });
+}
+
+function normalizeDragonModel(modelRoot) {
+    modelRoot.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(modelRoot);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const targetSize = 7.2;
+    modelRoot.scale.multiplyScalar(targetSize / maxDim);
+    modelRoot.updateMatrixWorld(true);
+
+    const fittedBox = new THREE.Box3().setFromObject(modelRoot);
+    const center = fittedBox.getCenter(new THREE.Vector3());
+    const minY = fittedBox.min.y;
+    modelRoot.position.x -= center.x;
+    modelRoot.position.z -= center.z;
+    modelRoot.position.y -= minY;
+    modelRoot.position.y += 0.15;
+}
+
+function loadDragonModelTemplate() {
+    if (dragonModelTemplate) return Promise.resolve(dragonModelTemplate);
+    if (dragonModelLoading) return dragonModelLoading;
+    dragonModelLoading = new Promise((resolve, reject) => {
+        gltfLoader.load(
+            DRAGON_MODEL_URL,
+            (gltf) => {
+                dragonModelTemplate = gltf.scene;
+                resolve(dragonModelTemplate);
+            },
+            undefined,
+            (error) => {
+                console.error('Failed to load fire dragon boss model:', error);
+                reject(error);
+            }
+        );
+    }).catch((error) => {
+        dragonModelLoading = null;
+        throw error;
+    });
+    return dragonModelLoading;
+}
+
+function createDragonFallbackBody(materials) {
+    const body = new THREE.Group();
+    body.name = 'dragonFallbackBody';
+
+    const torso = new THREE.Mesh(new THREE.SphereGeometry(1.35, 24, 16), materials.body);
+    torso.scale.set(1.45, 0.75, 2.0);
+    torso.position.y = 2.5;
+    body.add(torso);
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 1.7, 16), materials.body);
+    neck.position.set(0, 3.1, 1.45);
+    neck.rotation.x = -0.75;
+    body.add(neck);
+
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.4, 24), materials.body);
+    head.position.set(0, 3.55, 2.35);
+    head.rotation.x = Math.PI / 2;
+    body.add(head);
+
+    const wingGeo = new THREE.ConeGeometry(1.6, 3.4, 3);
+    const leftWing = new THREE.Mesh(wingGeo, materials.wing);
+    leftWing.position.set(-1.75, 2.75, -0.15);
+    leftWing.rotation.set(0.15, 0.25, -0.95);
+    body.add(leftWing);
+
+    const rightWing = new THREE.Mesh(wingGeo, materials.wing);
+    rightWing.position.set(1.75, 2.75, -0.15);
+    rightWing.rotation.set(0.15, -0.25, 0.95);
+    body.add(rightWing);
+
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.45, 3.4, 16), materials.body);
+    tail.position.set(0, 2.25, -2.65);
+    tail.rotation.x = -Math.PI / 2;
+    body.add(tail);
+
+    const flame = new THREE.PointLight(0xff6a00, 2.4, 12);
+    flame.position.set(0, 3.4, 2.8);
+    body.add(flame);
+
+    return body;
+}
+
+function createDragonAura(material) {
+    const aura = new THREE.Group();
+    aura.name = 'dragonAura';
+
+    const ringGeo = new THREE.TorusGeometry(3.2, 0.055, 8, 96);
+    const ringA = new THREE.Mesh(ringGeo, material);
+    ringA.rotation.x = Math.PI / 2;
+    ringA.position.y = 1.15;
+    aura.add(ringA);
+
+    const ringB = new THREE.Mesh(ringGeo, material.clone());
+    ringB.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+    ringB.position.y = 2.45;
+    aura.add(ringB);
+
+    const haloGeo = new THREE.TorusGeometry(1.35, 0.04, 8, 64);
+    const halo = new THREE.Mesh(haloGeo, material.clone());
+    halo.position.y = 4.2;
+    halo.rotation.x = Math.PI / 2;
+    aura.add(halo);
+
+    const light = new THREE.PointLight(0xff5a12, 1.6, 16);
+    light.position.y = 2.4;
+    aura.add(light);
+    aura.userData = { ringA, ringB, halo, light };
+    return aura;
+}
+
+function createFireDragonBossModel() {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd9480f, emissive: 0x7c1d00, emissiveIntensity: 0.5, roughness: 0.45, metalness: 0.1 });
+    const wingMat = new THREE.MeshStandardMaterial({ color: 0x7f1d1d, emissive: 0x3b0707, emissiveIntensity: 0.35, roughness: 0.55 });
+    const auraMat = new THREE.MeshBasicMaterial({ color: 0xff8a00, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false });
+
+    const bodyRoot = new THREE.Group();
+    bodyRoot.name = 'dragonBodyRoot';
+    const fallbackBody = createDragonFallbackBody({ body: bodyMat, wing: wingMat });
+    bodyRoot.add(fallbackBody);
+    group.add(bodyRoot);
+
+    const aura = createDragonAura(auraMat);
+    group.add(aura);
+
+    const sensor = new THREE.Object3D();
+    sensor.name = 'sensor';
+    sensor.position.set(0, 3.4, 0.4);
+    group.add(sensor);
+
+    const turretHead = new THREE.Object3D();
+    turretHead.name = 'turretHead';
+    turretHead.position.set(0, 3.1, 1.5);
+    group.add(turretHead);
+
+    const muzzle = new THREE.Object3D();
+    muzzle.name = 'muzzle';
+    muzzle.position.set(0, 3.2, 2.6);
+    group.add(muzzle);
+
+    group.userData.materials = { mat: bodyMat, darkMat: wingMat, emat: auraMat };
+    group.userData.dragonBodyRoot = bodyRoot;
+    group.userData.dragonAura = aura;
+    group.userData.dragonFallbackBody = fallbackBody;
+
+    loadDragonModelTemplate().then((template) => {
+        if (!group.parent) return;
+        const modelRoot = template.clone(true);
+        cloneMeshMaterials(modelRoot);
+        normalizeDragonModel(modelRoot);
+        while (bodyRoot.children.length) bodyRoot.remove(bodyRoot.children[0]);
+        bodyRoot.add(modelRoot);
+        group.userData.dragonModelRoot = modelRoot;
+        const modelMaterials = collectUniqueMaterials(modelRoot);
+        if (modelMaterials.length > 0) {
+            group.userData.dragonModelMaterials = modelMaterials;
+            group.userData.materials = {
+                mat: modelMaterials[0],
+                darkMat: modelMaterials[1] || modelMaterials[0],
+                emat: auraMat
+            };
+        }
+    }).catch(() => {
+        // The fallback body remains playable if the large GLB cannot be loaded.
+    });
+
+    return { group, sensor, turretHead, muzzle, aura };
+}
+
+function flashDragonBossHit(dragon) {
+    const materials = collectUniqueMaterials(dragon.group);
+    const backups = materials.map((material) => ({
+        material,
+        color: material.color ? material.color.clone() : null,
+        emissive: material.emissive ? material.emissive.clone() : null
+    }));
+
+    materials.forEach((material) => {
+        if (material.color) material.color.set(0xffffff);
+        if (material.emissive) material.emissive.set(0xffcc66);
+    });
+
+    setTimeout(() => {
+        backups.forEach(({ material, color, emissive }) => {
+            if (!material) return;
+            if (color && material.color) material.color.copy(color);
+            if (emissive && material.emissive) material.emissive.copy(emissive);
+        });
+    }, 120);
+}
+
+function updateFireDragonBossVisuals(dragon, time, dt) {
+    if (!dragon.group) return;
+    dragon.group.position.y = Math.sin(time * 1.6 + dragon.id) * 0.22;
+
+    const aura = dragon.group.userData.dragonAura;
+    if (aura) {
+        aura.rotation.y += dt * 1.35;
+        const pulse = 0.85 + Math.sin(time * 4.0 + dragon.id) * 0.15;
+        aura.scale.setScalar(pulse);
+        const { ringA, ringB, halo, light } = aura.userData;
+        if (ringA) ringA.rotation.z += dt * 1.8;
+        if (ringB) ringB.rotation.z -= dt * 1.2;
+        if (halo) halo.rotation.z += dt * 2.4;
+        if (light) light.intensity = 1.4 + Math.sin(time * 6.0) * 0.35;
+    }
+
+    if (gameMode === 'playing') {
+        const dir = new THREE.Vector3().subVectors(player.pos, dragon.group.position);
+        dir.y = 0;
+        if (dir.lengthSq() > 0.001) {
+            const targetYaw = Math.atan2(dir.x, dir.z);
+            let delta = targetYaw - dragon.group.rotation.y;
+            delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+            dragon.group.rotation.y += THREE.MathUtils.clamp(delta, -dt * 1.6, dt * 1.6);
+        }
+    }
+}
+
 function addTurret(params){
     const {x, z, kind, id} = params;
-    const objectId = id !== null ? id : ++objectCounter;
-    if (id !== null && id > objectCounter) objectCounter = id;
+    const hasId = id !== null && id !== undefined;
+    const objectId = hasId ? id : ++objectCounter;
+    if (hasId && id > objectCounter) objectCounter = id;
 
     let t;
-    if (kind === 'kingkong_turret') {
+    if (kind === 'fire_dragon_boss') {
+        const model = createFireDragonBossModel();
+        const group = model.group;
+        group.position.set(x, 0, z);
+        scene.add(group);
+        const now = clock ? clock.getElapsedTime() : 0;
+        const hp = Math.max(1, parseInt(params.hp ?? DRAGON_DEFAULT_HP, 10) || DRAGON_DEFAULT_HP);
+        t = {
+            group, kind: 'fire_dragon_boss', id: objectId,
+            hp, maxHp: hp,
+            aoeRadius: parseFloat(params.aoeRadius ?? DRAGON_DEFAULT_AOE_RADIUS) || DRAGON_DEFAULT_AOE_RADIUS,
+            aoeDamage: parseFloat(params.aoeDamage ?? DRAGON_DEFAULT_AOE_DAMAGE) || DRAGON_DEFAULT_AOE_DAMAGE,
+            aoeInterval: parseFloat(params.aoeInterval ?? DRAGON_DEFAULT_AOE_INTERVAL) || DRAGON_DEFAULT_AOE_INTERVAL,
+            teleportInterval: parseFloat(params.teleportInterval ?? DRAGON_DEFAULT_TELEPORT_INTERVAL) || DRAGON_DEFAULT_TELEPORT_INTERVAL,
+            lastAoeAttack: now,
+            lastTeleport: now,
+            turretHead: model.turretHead,
+            muzzle: model.muzzle,
+            sensor: model.sensor,
+            aura: model.aura,
+            pausedByAim: false,
+            teleporting: false
+        };
+    } else if (kind === 'kingkong_turret') {
         const group = createKingKongTurretModel(params.color);
         group.position.set(x, 0, z); // Y=0, model defines its height
         scene.add(group);
@@ -2294,6 +2594,153 @@ function triggerKingKongAoe(turret) {
     }, indicatorDuration * 1000);
 }
 
+function createDragonTeleportEffect(position) {
+    const group = new THREE.Group();
+    group.position.copy(position);
+    group.position.y = 1.6;
+
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff8a00, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
+    const ringA = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.06, 8, 72), mat);
+    ringA.rotation.x = Math.PI / 2;
+    group.add(ringA);
+
+    const ringB = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.05, 8, 64), mat.clone());
+    ringB.rotation.y = Math.PI / 2;
+    group.add(ringB);
+
+    const burst = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), mat.clone());
+    burst.scale.set(0.4, 0.4, 0.4);
+    group.add(burst);
+
+    activeEffects.push({
+        type: 'dragon_teleport',
+        mesh: group,
+        startTime: clock.getElapsedTime(),
+        duration: 0.65
+    });
+    scene.add(group);
+}
+
+function randomDragonTeleportPosition() {
+    const margin = 5;
+    const minX = -arena.w / 2 + margin;
+    const maxX = arena.w / 2 - margin;
+    const minZ = -arena.d / 2 + margin;
+    const maxZ = arena.d / 2 - margin;
+    let candidate = new THREE.Vector3(0, 0, 0);
+
+    for (let i = 0; i < 24; i++) {
+        candidate.set(
+            THREE.MathUtils.randFloat(minX, maxX),
+            0,
+            THREE.MathUtils.randFloat(minZ, maxZ)
+        );
+        if (candidate.distanceTo(player.pos) > 12) break;
+    }
+
+    return candidate;
+}
+
+function teleportDragonBoss(dragon) {
+    if (dragon.teleporting) return;
+    dragon.lastTeleport = clock.getElapsedTime();
+    dragon.teleporting = true;
+
+    const oldPosition = dragon.group.position.clone();
+    createDragonTeleportEffect(oldPosition);
+    dragon.group.visible = false;
+
+    setTimeout(() => {
+        if (!turrets.includes(dragon) || gameMode !== 'playing') {
+            dragon.teleporting = false;
+            if (dragon.group) dragon.group.visible = true;
+            return;
+        }
+        const nextPosition = randomDragonTeleportPosition();
+        dragon.group.position.set(nextPosition.x, 0, nextPosition.z);
+        dragon.group.visible = true;
+        dragon.teleporting = false;
+        createDragonTeleportEffect(dragon.group.position);
+        if (editorData.selection?.ref === dragon) applyPosInputs();
+    }, 360);
+}
+
+function createDragonFlameBolt(targetPosition, radius, duration) {
+    const group = new THREE.Group();
+    group.position.set(targetPosition.x, 24, targetPosition.z);
+
+    const flameMat = new THREE.MeshBasicMaterial({
+        color: 0xff6a00,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.18, radius * 0.38, 12, 24, 1, true), flameMat);
+    core.position.y = -5.5;
+    group.add(core);
+
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.45, 3.5, 24), flameMat.clone());
+    tip.position.y = -12.5;
+    tip.rotation.x = Math.PI;
+    group.add(tip);
+
+    const light = new THREE.PointLight(0xff5a00, 3.4, radius * 3.0);
+    light.position.y = -8;
+    group.add(light);
+
+    activeEffects.push({
+        type: 'dragon_flame_bolt',
+        mesh: group,
+        startTime: clock.getElapsedTime(),
+        duration,
+        startY: 24,
+        endY: 8,
+        light
+    });
+    scene.add(group);
+}
+
+function triggerDragonFlameAoe(dragon) {
+    dragon.lastAoeAttack = clock.getElapsedTime();
+    sound.play('npcAoe');
+
+    const targetPosition = player.pos.clone();
+    targetPosition.y = 0.12;
+    const radius = dragon.aoeRadius;
+    const damage = dragon.aoeDamage;
+    const warningDuration = 1.25;
+    const color = 0xff5a00;
+
+    const ringGeo = new THREE.RingGeometry(Math.max(0.2, radius - 0.45), radius, 72);
+    const ringMat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.copy(targetPosition);
+    ringMesh.rotation.x = -Math.PI / 2;
+
+    activeEffects.push({
+        type: 'dragon_flame_warning',
+        mesh: ringMesh,
+        startTime: clock.getElapsedTime(),
+        duration: warningDuration
+    });
+    scene.add(ringMesh);
+    createDragonFlameBolt(targetPosition, radius, warningDuration);
+
+    setTimeout(() => {
+        if (gameMode !== 'playing') return;
+        createExplosionEffect(targetPosition, radius, color);
+        if (player.pos.distanceTo(targetPosition) < radius) {
+            player.hp -= damage;
+            flashDamage();
+            sound.play('playerHit');
+            updateHUD();
+            if (player.hp <= 0) endGame(false);
+        }
+    }, warningDuration * 1000);
+}
+
 
 function update(dt){
   if (gameMode === 'playing' && cameraSettings.viewMode !== ViewModes.TOPDOWN && (look.deltaX !== 0 || look.deltaY !== 0)) {
@@ -2335,6 +2782,24 @@ function update(dt){
       } else if (effect.type === 'aoe_indicator') {
           // Pulsing effect during warning phase
           effect.mesh.material.opacity = 0.6 + Math.sin(elapsed * Math.PI * 4) * 0.2;
+      } else if (effect.type === 'dragon_flame_warning') {
+          const pulse = 0.65 + Math.sin(elapsed * Math.PI * 8) * 0.2;
+          effect.mesh.material.opacity = pulse * (1.0 - progress * 0.15);
+          effect.mesh.scale.setScalar(0.9 + progress * 0.18);
+      } else if (effect.type === 'dragon_flame_bolt') {
+          effect.mesh.position.y = THREE.MathUtils.lerp(effect.startY, effect.endY, progress);
+          effect.mesh.rotation.y += dt * 2.4;
+          effect.mesh.scale.setScalar(0.75 + progress * 0.4);
+          effect.mesh.traverse((child) => {
+              if (child.material) child.material.opacity = Math.max(0, 0.95 - progress * 0.35);
+          });
+          if (effect.light) effect.light.intensity = 3.4 + Math.sin(elapsed * 18) * 0.8;
+      } else if (effect.type === 'dragon_teleport') {
+          effect.mesh.rotation.y += dt * 3.6;
+          effect.mesh.scale.setScalar(0.6 + progress * 2.2);
+          effect.mesh.traverse((child) => {
+              if (child.material) child.material.opacity = (1.0 - progress) * 0.75;
+          });
       } else if (effect.type === 'explosion_shockwave') {
           // Expanding sphere
           const scale = progress * effect.targetScale;
@@ -2412,7 +2877,7 @@ function update(dt){
             if (newlyAimedTurret) {
                 newlyAimedTurret.pausedByAim = true;
                 sound.play('npcFrozen');
-                const materials = newlyAimedTurret.group.userData.materials;
+                const materials = newlyAimedTurret.group.userData.materials || {};
                 const { mat, darkMat, emat } = materials;
 
                 // Store original colors if not already stored
@@ -2442,6 +2907,19 @@ function update(dt){
     }
 
   for (const t of turrets){
+    if (t.kind === 'fire_dragon_boss') {
+        updateFireDragonBossVisuals(t, time, dt);
+        if (gameMode === 'playing' && !t.pausedByAim && !t.teleporting && timeElapsed > 2.0) {
+            if (clock.elapsedTime - t.lastAoeAttack > t.aoeInterval) {
+                triggerDragonFlameAoe(t);
+            }
+            if (clock.elapsedTime - t.lastTeleport > t.teleportInterval) {
+                teleportDragonBoss(t);
+            }
+        }
+        continue;
+    }
+
     let canSeePlayer = false;
     if (gameMode === 'playing') {
         const headPos = new THREE.Vector3();
@@ -2670,11 +3148,20 @@ function update(dt){
         if (b.from === 'player'){
           for (let j=turrets.length-1;j>=0;j--){
             const t=turrets[j];
+            if (t.teleporting) continue;
             // Adjust hit distance based on turret model size
-            const hitDist = t.kind === 'kingkong_turret' ? 3.0 : 1.2;
+            const hitDist = t.kind === 'fire_dragon_boss' ? 4.0 : (t.kind === 'kingkong_turret' ? 3.0 : 1.2);
             if (b.mesh.position.distanceTo(t.group.position)<hitDist){
               sound.play('npcHit');
-              if (t.kind === 'kingkong_turret') {
+              if (t.kind === 'fire_dragon_boss') {
+                  t.hp--;
+                  if (t.hp > 0) {
+                      flashDragonBossHit(t);
+                  } else {
+                      createDragonTeleportEffect(t.group.position);
+                      scene.remove(t.group); turrets.splice(j,1);
+                  }
+              } else if (t.kind === 'kingkong_turret') {
                   t.hp--;
                   if (t.hp > 0) {
                       // Flash effect on hit
@@ -2815,12 +3302,13 @@ function loadLevel(level){
   addPlayerSpawn(level.playerStart?.x??0, level.playerStart?.z??20);
   (level.turrets??[]).forEach(t => {
       const params = {
-          x: t.x, z: t.z, kind: t.kind, id: t.id,
+          x: t.x, z: t.z, kind: t.kind || 'turret', id: t.id,
           // Standard turret properties
           subType: t.subType, rate: t.rate, bps: t.bps, gear: t.gear,
           mode: t.mode, w: t.w, d: t.d, path: t.path, pathLoop: t.pathLoop, style: t.style,
-          // King Kong properties
+          // Boss/AOE properties
           hp: t.hp, color: t.color, aoeRadius: t.aoeRadius, aoeDamage: t.aoeDamage, aoeInterval: t.aoeInterval,
+          teleportInterval: t.teleportInterval,
       };
       addTurret(params);
   });
@@ -3110,7 +3598,13 @@ function currentLevelData(){
         },
         playerStart: { x: player.pos.x, z: player.pos.z },
         turrets: turrets.map(t => {
-            if (t.kind === 'kingkong_turret') {
+            if (t.kind === 'fire_dragon_boss') {
+                return {
+                    kind: 'fire_dragon_boss', id: t.id, x: t.group.position.x, z: t.group.position.z,
+                    hp: t.maxHp, aoeRadius: t.aoeRadius, aoeDamage: t.aoeDamage,
+                    aoeInterval: t.aoeInterval, teleportInterval: t.teleportInterval
+                };
+            } else if (t.kind === 'kingkong_turret') {
                 return {
                     kind: 'kingkong_turret', id: t.id, x: t.group.position.x, z: t.group.position.z,
                     hp: t.maxHp, color: t.color, aoeRadius: t.aoeRadius, aoeDamage: t.aoeDamage, aoeInterval: t.aoeInterval,
@@ -3367,7 +3861,7 @@ function bindEditorEvents(){
             playerMarker.position.set(x, EDITOR_Y_OFFSET, z);
         } else if (sel.kind === 'turret') {
             sel.ref.group.position.set(x, 0.1, z);
-        } else if (sel.kind === 'kingkong_turret') {
+        } else if (sel.kind === 'kingkong_turret' || sel.kind === 'fire_dragon_boss') {
             sel.ref.group.position.set(x, 0, z);
         } else if (sel.kind === 'waypoint') {
             sel.ref.group.position.set(x, 1.5 * sel.ref.size, z);
@@ -3403,6 +3897,18 @@ function bindEditorEvents(){
     kingkongAoeDamageInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'kingkong_turret') s.ref.aoeDamage = parseFloat(kingkongAoeDamageInput.value); });
     kingkongAoeIntervalInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'kingkong_turret') s.ref.aoeInterval = parseFloat(kingkongAoeIntervalInput.value); });
     kingkongGearSel.addEventListener('change', () => { const s = editorData.selection; if (s?.kind === 'kingkong_turret') s.ref.gear = kingkongGearSel.value; });
+
+    // Fire Dragon Boss Editor Bindings
+    dragonHpInput.addEventListener('input', () => {
+        const s = editorData.selection;
+        if (s?.kind !== 'fire_dragon_boss') return;
+        const hp = Math.max(1, parseInt(dragonHpInput.value, 10) || DRAGON_DEFAULT_HP);
+        s.ref.hp = s.ref.maxHp = hp;
+    });
+    dragonAoeRadiusInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'fire_dragon_boss') s.ref.aoeRadius = parseFloat(dragonAoeRadiusInput.value) || DRAGON_DEFAULT_AOE_RADIUS; });
+    dragonAoeDamageInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'fire_dragon_boss') s.ref.aoeDamage = parseFloat(dragonAoeDamageInput.value) || DRAGON_DEFAULT_AOE_DAMAGE; });
+    dragonAoeIntervalInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'fire_dragon_boss') s.ref.aoeInterval = parseFloat(dragonAoeIntervalInput.value) || DRAGON_DEFAULT_AOE_INTERVAL; });
+    dragonTeleportIntervalInput.addEventListener('input', () => { const s = editorData.selection; if (s?.kind === 'fire_dragon_boss') s.ref.teleportInterval = parseFloat(dragonTeleportIntervalInput.value) || DRAGON_DEFAULT_TELEPORT_INTERVAL; });
 
     // King Kong Path Editing Bindings
     kingkongPathEditBtn.addEventListener('click',()=>{
@@ -3467,13 +3973,14 @@ function bindEditorEvents(){
     $('btn-add').addEventListener('click',()=>{
         const k=objKind.value;
         if(k==='turret') addTurret({x:0, z:0, kind:'turret', subType:'moving', rate:2.0, bps:60, gear:2, mode:'area', w:24, d:16, path:[], pathLoop:true, id:null, style:'scifi_blue'});
-        else if (k==='kingkong_turret') addTurret({x:0, z:0, kind:'kingkong_turret', hp:10, color:'#4A4A6A', aoeRadius:10, aoeDamage:25, aoeInterval: 8.0, gear: 2, path:[], pathLoop: true, id: null});
+        else if (k==='kingkong_turret') addTurret({x:0, z:0, kind:'kingkong_turret', hp:10, color:'#4A4A6A', aoeRadius:10, aoeDamage:KINGKONG_DEFAULT_AOE_DAMAGE, aoeInterval: 8.0, gear: 2, path:[], pathLoop: true, id: null});
+        else if (k==='fire_dragon_boss') addTurret({x:0, z:0, kind:'fire_dragon_boss', hp:DRAGON_DEFAULT_HP, aoeRadius:DRAGON_DEFAULT_AOE_RADIUS, aoeDamage:DRAGON_DEFAULT_AOE_DAMAGE, aoeInterval: DRAGON_DEFAULT_AOE_INTERVAL, teleportInterval: DRAGON_DEFAULT_TELEPORT_INTERVAL, id: null});
         // Updated: Add wall uses endpoints
         else if(k==='wall') addWall(0, 0, 8, 0); // Start a default 8 unit long wall at origin
         else if(k==='waypoint') addWaypoint(0,0, findNextAvailableWaypointOrder());
     });
     // Updated Delete button logic
-    $('btn-del').addEventListener('click',()=>{const s=editorData.selection; if(!s) { alert(T('alert_select_object')); return; } if(s.kind==='player') { alert(T('alert_player_cannot_delete')); return; } let arr; let obj; if (s.kind==='turret' || s.kind === 'kingkong_turret'){ arr=turrets; obj=s.ref.group; } else if(s.kind==='wall') { arr=walls; obj=s.ref.mesh; setWallEditMode('drag'); clearHandles(); } else { arr=waypoints; obj=s.ref.group; } const idx=arr.findIndex(i=>i.id===s.ref.id); if(idx>-1) arr.splice(idx,1); scene.remove(obj); editorData.selection=null; onSelectedChanged();});
+    $('btn-del').addEventListener('click',()=>{const s=editorData.selection; if(!s) { alert(T('alert_select_object')); return; } if(s.kind==='player') { alert(T('alert_player_cannot_delete')); return; } let arr; let obj; if (s.kind==='turret' || s.kind === 'kingkong_turret' || s.kind === 'fire_dragon_boss'){ arr=turrets; obj=s.ref.group; } else if(s.kind==='wall') { arr=walls; obj=s.ref.mesh; setWallEditMode('drag'); clearHandles(); } else { arr=waypoints; obj=s.ref.group; } const idx=arr.findIndex(i=>i.id===s.ref.id); if(idx>-1) arr.splice(idx,1); scene.remove(obj); editorData.selection=null; onSelectedChanged();});
 
     $('btn-test').addEventListener('click',()=>startGame(currentLevelData(), true));
     // Updated Exit button logic

@@ -48,7 +48,7 @@ export function createI18n(VERSION) {
             editor_upload_texture: '上传图片', editor_clear_texture: '清除', editor_texture_scale: '纹理大小/缩放',
 
             editor_object_properties: '对象属性', editor_object_type: '对象类型',
-            obj_player: '玩家起点', obj_turret: '普通炮台', obj_turret_kingkong: '金刚炮台', obj_wall: '墙壁', obj_waypoint: '路标',
+            obj_player: '玩家起点', obj_turret: '普通炮台', obj_turret_kingkong: '金刚炮台', obj_fire_dragon_boss: '火龙 Boss', obj_wall: '墙壁', obj_waypoint: '路标',
             editor_pos_x: '位置 X', editor_pos_z: '位置 Z',
             editor_turret_style: '炮台风格',
             tstyle_scifi_blue: '科幻蓝 (默认)', tstyle_military_green: '军工绿', tstyle_stealth_black: '潜伏黑', tstyle_alert_red: '警戒红', tstyle_construction_yellow: '工程黄',
@@ -62,6 +62,9 @@ export function createI18n(VERSION) {
             editor_turret_hp: '生命值 (HP)', editor_turret_body_color: '机体颜色',
             editor_turret_aoe_radius: 'AOE 范围', editor_turret_aoe_damage: 'AOE 伤害', editor_turret_aoe_interval: 'AOE 间隔(秒)',
             editor_kingkong_tips: '金刚炮台在没有路径时会自动追踪玩家。',
+            editor_dragon_settings: '火龙 Boss 属性',
+            editor_dragon_teleport_interval: '瞬移间隔 (秒)',
+            editor_dragon_tips: '火龙会周期性消失并换位，从天空降下火焰 AOE。',
 
             // Wall Editor i18n updates
             editor_wall_properties: '墙壁属性', editor_wall_style: '墙体风格',
@@ -133,7 +136,7 @@ export function createI18n(VERSION) {
             editor_upload_texture: 'Upload Image', editor_clear_texture: 'Clear', editor_texture_scale: 'Texture Size/Scale',
 
             editor_object_properties: 'Object Properties', editor_object_type: 'Object Type',
-            obj_player: 'Player Start', obj_turret: 'Standard Turret', obj_turret_kingkong: 'King Kong Turret', obj_wall: 'Wall', obj_waypoint: 'Waypoint',
+            obj_player: 'Player Start', obj_turret: 'Standard Turret', obj_turret_kingkong: 'King Kong Turret', obj_fire_dragon_boss: 'Fire Dragon Boss', obj_wall: 'Wall', obj_waypoint: 'Waypoint',
             editor_pos_x: 'Pos X', editor_pos_z: 'Pos Z',
             editor_turret_style: 'Turret Style',
             tstyle_scifi_blue: 'Sci-Fi Blue (Default)', tstyle_military_green: 'Military Green', tstyle_stealth_black: 'Stealth Black', tstyle_alert_red: 'Alert Red', tstyle_construction_yellow: 'Construction Yellow',
@@ -147,6 +150,9 @@ export function createI18n(VERSION) {
             editor_turret_hp: 'Health (HP)', editor_turret_body_color: 'Body Color',
             editor_turret_aoe_radius: 'AOE Radius', editor_turret_aoe_damage: 'AOE Damage', editor_turret_aoe_interval: 'AOE Interval (s)',
             editor_kingkong_tips: 'King Kong turret will automatically track the player when no path is set.',
+            editor_dragon_settings: 'Fire Dragon Boss Settings',
+            editor_dragon_teleport_interval: 'Teleport Interval (s)',
+            editor_dragon_tips: 'The fire dragon vanishes and relocates periodically, then drops a flame AOE from the sky.',
 
             // Wall Editor i18n updates
             editor_wall_properties: 'Wall Properties', editor_wall_style: 'Wall Style',

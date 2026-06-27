@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Game Dodge — Enhanced v153 (Wall Extend + Stretch Modes)</title>
-  <link rel="stylesheet" href="./src/styles.css?v=20260622" />
+  <link rel="stylesheet" href="./src/styles.css?v=20260627" />
   <script type="importmap">
   {
     "imports": {
@@ -218,6 +218,7 @@
               <option value="player" data-i18n="obj_player">玩家起点</option>
               <option value="turret" data-i18n="obj_turret">炮台</option>
               <option value="kingkong_turret" data-i18n="obj_turret_kingkong">金刚炮台</option>
+              <option value="fire_dragon_boss" data-i18n="obj_fire_dragon_boss">火龙 Boss</option>
               <option value="wall" data-i18n="obj_wall">墙壁</option>
               <option value="waypoint" data-i18n="obj_waypoint">路标</option>
             </select>
@@ -306,6 +307,21 @@
              <p class="tips" style="margin-top: 4px;" data-i18n="editor_kingkong_tips">金刚炮台在没有路径时会自动追踪玩家。</p>
           </div>
 
+          <div id="dragon-boss-panel" style="display:none;">
+            <div class="sep"></div>
+            <h4 data-i18n="editor_dragon_settings">火龙 Boss 属性</h4>
+            <div class="row">
+                <label style="flex:1;"><span data-i18n="editor_turret_hp">生命值 (HP)</span> <input id="dragon-hp" type="number" min="1" step="1" value="10"/></label>
+                <label style="flex:1;"><span data-i18n="editor_turret_aoe_damage">AOE 伤害</span> <input id="dragon-aoe-damage" type="number" min="1" step="1" value="50"/></label>
+            </div>
+            <div class="row">
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_radius">AOE 范围</span> <input id="dragon-aoe-radius" type="number" min="1" step="1" value="12"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_interval">AOE 间隔 (秒)</span> <input id="dragon-aoe-interval" type="number" min="1" step="0.5" value="5"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_dragon_teleport_interval">瞬移间隔 (秒)</span> <input id="dragon-teleport-interval" type="number" min="1" step="0.5" value="5"/></label>
+            </div>
+            <p class="tips" style="margin-top: 4px;" data-i18n="editor_dragon_tips">火龙会周期性消失并换位，从天空降下火焰 AOE。</p>
+          </div>
+
           <div id="wall-panel" style="display:none;">
             <div class="sep"></div>
             <h4 data-i18n="editor_wall_properties">墙壁属性</h4>
@@ -387,6 +403,6 @@
     <div id="lockHint" class="panel" data-i18n="lock_hint"></div>
   </div>
 
-  <script type="module" src="./src/main.js?v=20260622"></script>
+  <script type="module" src="./src/main.js?v=20260627"></script>
 </body>
 </html>
