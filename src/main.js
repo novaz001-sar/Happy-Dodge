@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createI18n } from './i18n.js?v=20260627b';
-import { createLevels } from './levels.js?v=20260627b';
+import { createI18n } from './i18n.js?v=20260627c';
+import { createLevels } from './levels.js?v=20260627c';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -30,6 +30,8 @@ const DRAGON_DEFAULT_AOE_RADIUS = 6;
 const DRAGON_DEFAULT_AOE_INTERVAL = 5;
 const DRAGON_DEFAULT_TELEPORT_INTERVAL = 5;
 const DRAGON_MODEL_URL = './assets/models/orange-dragon-boss.glb?v=20260627';
+// The GLB's face points along local +X, while the game heading math uses local +Z.
+const DRAGON_FACE_YAW_OFFSET = -Math.PI / 2;
 const GameModes = { ELIM:'elimination', SURV:'survival', WAYPOINT:'waypoint' };
 const ViewModes = { FIRST:'firstperson', TOPDOWN:'topdown' };
 const CUSTOM_SLOTS = 20;
@@ -2084,7 +2086,16 @@ function flashDragonBossHit(dragon) {
     }, 120);
 }
 
-function updateFireDragonBossVisuals(dragon, time, dt) {
+function fireDragonCanSeePlayer(dragon) {
+    if (gameMode !== 'playing' || !dragon.group || !dragon.group.visible || dragon.teleporting) return false;
+    const headPos = new THREE.Vector3();
+    const sensor = dragon.sensor || dragon.group;
+    sensor.getWorldPosition(headPos);
+    const playerHeadPos = player.pos.clone().setY(headPos.y);
+    return !intersectsWalls(headPos, playerHeadPos);
+}
+
+function updateFireDragonBossVisuals(dragon, time, dt, canSeePlayer) {
     if (!dragon.group) return;
     dragon.group.position.y = Math.sin(time * 1.6 + dragon.id) * 0.22;
 
@@ -2100,11 +2111,11 @@ function updateFireDragonBossVisuals(dragon, time, dt) {
         if (light) light.intensity = 1.4 + Math.sin(time * 6.0) * 0.35;
     }
 
-    if (gameMode === 'playing') {
+    if (canSeePlayer) {
         const dir = new THREE.Vector3().subVectors(player.pos, dragon.group.position);
         dir.y = 0;
         if (dir.lengthSq() > 0.001) {
-            dragon.group.rotation.y = Math.atan2(dir.x, dir.z);
+            dragon.group.rotation.y = Math.atan2(dir.x, dir.z) + DRAGON_FACE_YAW_OFFSET;
         }
     }
 }
@@ -2935,9 +2946,10 @@ function update(dt){
 
   for (const t of turrets){
     if (t.kind === 'fire_dragon_boss') {
-        updateFireDragonBossVisuals(t, time, dt);
+        const canSeePlayer = fireDragonCanSeePlayer(t);
+        updateFireDragonBossVisuals(t, time, dt, canSeePlayer);
         if (gameMode === 'playing' && !t.pausedByAim && !t.teleporting && timeElapsed > 2.0) {
-            if (clock.elapsedTime - t.lastAoeAttack > t.aoeInterval) {
+            if (canSeePlayer && clock.elapsedTime - t.lastAoeAttack > t.aoeInterval) {
                 triggerDragonFlameAoe(t);
             }
             if (clock.elapsedTime - t.lastTeleport > t.teleportInterval) {
