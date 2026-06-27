@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createI18n } from './i18n.js?v=20260627a';
-import { createLevels } from './levels.js?v=20260627a';
+import { createI18n } from './i18n.js?v=20260627b';
+import { createLevels } from './levels.js?v=20260627b';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -26,7 +26,7 @@ const PLAYER_RADIUS = 0.5; // For collision detection
 const KINGKONG_DEFAULT_AOE_DAMAGE = 25;
 const DRAGON_DEFAULT_HP = 10;
 const DRAGON_DEFAULT_AOE_DAMAGE = KINGKONG_DEFAULT_AOE_DAMAGE * 2;
-const DRAGON_DEFAULT_AOE_RADIUS = 12;
+const DRAGON_DEFAULT_AOE_RADIUS = 6;
 const DRAGON_DEFAULT_AOE_INTERVAL = 5;
 const DRAGON_DEFAULT_TELEPORT_INTERVAL = 5;
 const DRAGON_MODEL_URL = './assets/models/orange-dragon-boss.glb?v=20260627';
@@ -2104,10 +2104,7 @@ function updateFireDragonBossVisuals(dragon, time, dt) {
         const dir = new THREE.Vector3().subVectors(player.pos, dragon.group.position);
         dir.y = 0;
         if (dir.lengthSq() > 0.001) {
-            const targetYaw = Math.atan2(dir.x, dir.z);
-            let delta = targetYaw - dragon.group.rotation.y;
-            delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-            dragon.group.rotation.y += THREE.MathUtils.clamp(delta, -dt * 1.6, dt * 1.6);
+            dragon.group.rotation.y = Math.atan2(dir.x, dir.z);
         }
     }
 }
@@ -2594,29 +2591,49 @@ function triggerKingKongAoe(turret) {
     }, indicatorDuration * 1000);
 }
 
-function createDragonTeleportEffect(position) {
+function createDragonTeleportEffect(position, mode = 'appear') {
+    const isVanish = mode === 'vanish';
     const group = new THREE.Group();
     group.position.copy(position);
     group.position.y = 1.6;
+    group.userData.mode = mode;
 
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff8a00, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
-    const ringA = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.06, 8, 72), mat);
+    const color = isVanish ? 0xff3b00 : 0xff8a00;
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.78, blending: THREE.AdditiveBlending, depthWrite: false });
+    const ringA = new THREE.Mesh(new THREE.TorusGeometry(isVanish ? 2.2 : 1.6, 0.06, 8, 72), mat);
     ringA.rotation.x = Math.PI / 2;
     group.add(ringA);
 
-    const ringB = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.05, 8, 64), mat.clone());
+    const ringB = new THREE.Mesh(new THREE.TorusGeometry(isVanish ? 1.5 : 1.0, 0.05, 8, 64), mat.clone());
     ringB.rotation.y = Math.PI / 2;
     group.add(ringB);
 
-    const burst = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), mat.clone());
-    burst.scale.set(0.4, 0.4, 0.4);
+    const burst = new THREE.Mesh(new THREE.SphereGeometry(isVanish ? 1.15 : 0.9, 24, 16), mat.clone());
+    burst.scale.set(isVanish ? 1.0 : 0.4, isVanish ? 1.0 : 0.4, isVanish ? 1.0 : 0.4);
     group.add(burst);
+
+    if (isVanish) {
+        const particleGeo = new THREE.SphereGeometry(0.09, 6, 6);
+        for (let i = 0; i < 36; i++) {
+            const particle = new THREE.Mesh(particleGeo, mat.clone());
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 0.35 + Math.random() * 1.8;
+            particle.position.set(Math.cos(angle) * radius, Math.random() * 2.4 - 0.3, Math.sin(angle) * radius);
+            particle.userData.velocity = new THREE.Vector3(
+                Math.cos(angle) * (1.8 + Math.random() * 4.0),
+                2.0 + Math.random() * 5.0,
+                Math.sin(angle) * (1.8 + Math.random() * 4.0)
+            );
+            group.add(particle);
+        }
+    }
 
     activeEffects.push({
         type: 'dragon_teleport',
         mesh: group,
         startTime: clock.getElapsedTime(),
-        duration: 0.65
+        duration: isVanish ? 0.9 : 0.65,
+        mode
     });
     scene.add(group);
 }
@@ -2647,7 +2664,7 @@ function teleportDragonBoss(dragon) {
     dragon.teleporting = true;
 
     const oldPosition = dragon.group.position.clone();
-    createDragonTeleportEffect(oldPosition);
+    createDragonTeleportEffect(oldPosition, 'vanish');
     dragon.group.visible = false;
 
     setTimeout(() => {
@@ -2660,7 +2677,7 @@ function teleportDragonBoss(dragon) {
         dragon.group.position.set(nextPosition.x, 0, nextPosition.z);
         dragon.group.visible = true;
         dragon.teleporting = false;
-        createDragonTeleportEffect(dragon.group.position);
+        createDragonTeleportEffect(dragon.group.position, 'appear');
         if (editorData.selection?.ref === dragon) applyPosInputs();
     }, 360);
 }
@@ -2795,9 +2812,15 @@ function update(dt){
           });
           if (effect.light) effect.light.intensity = 3.4 + Math.sin(elapsed * 18) * 0.8;
       } else if (effect.type === 'dragon_teleport') {
+          const isVanish = effect.mode === 'vanish';
           effect.mesh.rotation.y += dt * 3.6;
-          effect.mesh.scale.setScalar(0.6 + progress * 2.2);
+          const scale = isVanish ? THREE.MathUtils.lerp(1.25, 0.25, progress) : (0.6 + progress * 2.2);
+          effect.mesh.scale.setScalar(scale);
           effect.mesh.traverse((child) => {
+              if (child.userData?.velocity) {
+                  child.position.add(child.userData.velocity.clone().multiplyScalar(dt));
+                  child.userData.velocity.y -= 3.5 * dt;
+              }
               if (child.material) child.material.opacity = (1.0 - progress) * 0.75;
           });
       } else if (effect.type === 'explosion_shockwave') {
@@ -3162,7 +3185,7 @@ function update(dt){
                   if (t.hp > 0) {
                       flashDragonBossHit(t);
                   } else {
-                      createDragonTeleportEffect(t.group.position);
+                      createDragonTeleportEffect(t.group.position, 'vanish');
                       scene.remove(t.group); turrets.splice(j,1);
                   }
               } else if (t.kind === 'kingkong_turret') {
