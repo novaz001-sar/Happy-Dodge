@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createI18n } from './i18n.js?v=20260627';
-import { createLevels } from './levels.js?v=20260627';
+import { createI18n } from './i18n.js?v=20260627a';
+import { createLevels } from './levels.js?v=20260627a';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -2864,10 +2864,12 @@ function update(dt){
                 const materials = aimedTurret.group.userData.materials;
                 if(originalColors && materials) {
                     const { mat, darkMat, emat } = materials;
-                    if (mat) mat.color.setHex(originalColors.base);
-                    if (darkMat) darkMat.color.setHex(originalColors.dark);
-                    if (emat) {
+                    if (mat?.color && originalColors.base !== null) mat.color.setHex(originalColors.base);
+                    if (darkMat?.color && originalColors.dark !== null) darkMat.color.setHex(originalColors.dark);
+                    if (emat?.color && originalColors.emissive !== null) {
                         emat.color.setHex(originalColors.emissive);
+                    }
+                    if (emat?.emissive && originalColors.emissive !== null) {
                         emat.emissive.setHex(originalColors.emissive);
                     }
                 }
@@ -2883,18 +2885,20 @@ function update(dt){
                 // Store original colors if not already stored
                 if (!newlyAimedTurret.group.userData.originalColors) {
                      newlyAimedTurret.group.userData.originalColors = {
-                         base: mat ? mat.color.getHex() : null,
-                         dark: darkMat ? darkMat.color.getHex() : null,
-                         emissive: emat ? emat.color.getHex() : null
+                         base: mat?.color ? mat.color.getHex() : null,
+                         dark: darkMat?.color ? darkMat.color.getHex() : null,
+                         emissive: emat?.color ? emat.color.getHex() : null
                      };
                 }
 
                 // Apply pause color (Purple)
                 const purple = 0x9333ea;
-                if (mat) mat.color.setHex(purple);
-                if (darkMat) darkMat.color.setHex(new THREE.Color(purple).multiplyScalar(0.5).getHex());
-                if (emat) {
+                if (mat?.color) mat.color.setHex(purple);
+                if (darkMat?.color) darkMat.color.setHex(new THREE.Color(purple).multiplyScalar(0.5).getHex());
+                if (emat?.color) {
                     emat.color.setHex(purple);
+                }
+                if (emat?.emissive) {
                     emat.emissive.setHex(purple);
                 }
             }
