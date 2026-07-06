@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Game Dodge — Enhanced v153 (Wall Extend + Stretch Modes)</title>
+  <title>Game Dodge - Enhanced v153</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./src/styles.css?v=20260627c" />
+  <link rel="stylesheet" href="./src/styles.css?v=20260706a" />
   <script type="importmap">
   {
     "imports": {
@@ -23,48 +23,47 @@
     <div id="menu" class="panel">
       <div style="position:absolute; top:14px; right:14px;">
         <select id="lang-switcher" class="btn" style="padding: 6px 10px; margin:0; pointer-events: auto;">
-          <option value="zh-CN">简体中文</option>
-          <option value="en-US">English</option>
+          <option value="en-US" selected>English</option>
         </select>
       </div>
 
-      <h1 data-i18n="title">Game Dodge — Enhanced v153</h1>
-      <p style="margin-top:6px" data-i18n="menu_select_prompt">请选择关卡或进入编辑器：</p>
+      <h1 data-i18n="title">Game Dodge - Enhanced v153</h1>
+      <p style="margin-top:6px" data-i18n="menu_select_prompt">Please select a level or enter the editor:</p>
 
       <div style="margin-bottom: 12px;">
-        <h4 data-i18n="menu_builtin_levels">内置关卡</h4>
+        <h4 data-i18n="menu_builtin_levels">Built-in Levels</h4>
         <div class="level-row">
-            <button class="btn primary" id="play-level-1">开始关卡 1</button>
-            <button class="btn" id="edit-level-1" data-i18n="menu_edit">编辑</button>
+            <button class="btn primary" id="play-level-1">Start Level 1</button>
+            <button class="btn" id="edit-level-1" data-i18n="menu_edit">Edit</button>
         </div>
         <div class="level-row">
-            <button class="btn" id="play-level-2">开始关卡 2</button>
-            <button class="btn" id="edit-level-2" data-i18n="menu_edit">编辑</button>
+            <button class="btn" id="play-level-2">Start Level 2</button>
+            <button class="btn" id="edit-level-2" data-i18n="menu_edit">Edit</button>
         </div>
         <div class="level-row">
-            <button class="btn" id="play-level-3">开始关卡 3</button>
-            <button class="btn" id="edit-level-3" data-i18n="menu_edit">编辑</button>
+            <button class="btn" id="play-level-3">Start Level 3</button>
+            <button class="btn" id="edit-level-3" data-i18n="menu_edit">Edit</button>
         </div>
         <div class="level-row">
-            <button class="btn" id="play-level-4">开始关卡 4</button>
-            <button class="btn" id="edit-level-4" data-i18n="menu_edit">编辑</button>
+            <button class="btn" id="play-level-4">Start Level 4</button>
+            <button class="btn" id="edit-level-4" data-i18n="menu_edit">Edit</button>
         </div>
       </div>
 
       <div>
-        <h4 data-i18n="menu_custom_levels">自定义关卡</h4>
+        <h4 data-i18n="menu_custom_levels">Custom Levels</h4>
         <div id="custom-level-list"></div>
       </div>
 
       <div class="sep"></div>
-      <button class="btn" id="open-editor" data-i18n="menu_blank_editor">进入空白编辑器</button>
+      <button class="btn" id="open-editor" data-i18n="menu_blank_editor">Enter Blank Editor</button>
 
       <div class="row" style="margin-top:12px;">
         <div class="col" style="flex:1;">
-          <h3 data-i18n="menu_instructions">操作说明</h3>
+          <h3 data-i18n="menu_instructions">Instructions</h3>
           <ul style="margin:6px 0 0 18px; line-height:1.6;">
-            <li data-i18n="menu_instructions_game"></li>
-            <li data-i18n="menu_instructions_editor"></li>
+            <li data-i18n="menu_instructions_game"><span class="tag">New!</span> King Kong turrets also pause in Waypoint mode when aimed at.<br><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move; mouse to look; left click or Space to shoot; <span class="kbd">Esc</span> to pause/resume.</li>
+            <li data-i18n="menu_instructions_editor"><span class="tag">New!</span> Editor: Endpoint Stretch Mode lets you position walls precisely.<br>Left-drag objects; right-drag to rotate the view; Shift + left-drag to pan.</li>
           </ul>
         </div>
       </div>
@@ -77,333 +76,333 @@
 
     <div id="hud" class="hidden">
       <div class="pill"><span data-i18n="hud_hp">HP</span>: <span id="hp">200</span></div>
-      <div class="pill"><span data-i18n="hud_time">时间</span>: <span id="tm">60</span>s</div>
-      <div class="pill"><span data-i18n="hud_goal">目标</span>: <span id="goal">—</span></div>
+      <div class="pill"><span data-i18n="hud_time">Time</span>: <span id="tm">60</span>s</div>
+      <div class="pill"><span data-i18n="hud_goal">Goal</span>: <span id="goal">&mdash;</span></div>
     </div>
     <div id="crosshair" class="hidden"></div>
     <div id="damage"></div>
 
     <div id="editor" class="panel">
-      <h3 data-i18n="editor_title">编辑器</h3>
+      <h3 data-i18n="editor_title">Editor</h3>
       <div class="row" style="align-items: center;">
-        <button class="btn primary" id="btn-test" data-i18n="editor_test">测试关卡</button>
-        <button class="btn" id="btn-exit" data-i18n="editor_exit">返回菜单</button>
+        <button class="btn primary" id="btn-test" data-i18n="editor_test">Test Level</button>
+        <button class="btn" id="btn-exit" data-i18n="editor_exit">Back to Menu</button>
 
-        <button class="btn primary" id="btn-save-main" data-i18n="editor_save">保存</button>
-        <button class="btn" id="btn-save-new" data-i18n="editor_save_as_new">另存为新关卡</button>
+        <button class="btn primary" id="btn-save-main" data-i18n="editor_save">Save</button>
+        <button class="btn" id="btn-save-new" data-i18n="editor_save_as_new">Save as New</button>
 
-        <label><span data-i18n="editor_level_name">关卡名称</span> <input id="level-name" type="text" placeholder="输入名称" style="width:120px;"/></label>
+        <label><span data-i18n="editor_level_name">Level Name</span> <input id="level-name" type="text" placeholder="Enter name" style="width:120px;"/></label>
 
         <div id="slot-management" style="display:flex; gap:8px; align-items:center;">
-            <label><span data-i18n="editor_slot">槽位</span>
+            <label><span data-i18n="editor_slot">Slot</span>
               <select id="save-slot" style="width:auto;">
               </select>
             </label>
-            <button class="btn" id="btn-load-slot" data-i18n="editor_load">加载</button>
+            <button class="btn" id="btn-load-slot" data-i18n="editor_load">Load</button>
         </div>
       </div>
       <div class="row" style="margin-top: 8px;">
-          <button class="btn" id="btn-export" data-i18n="editor_export">导出JSON</button>
-          <button class="btn" id="btn-import" data-i18n="editor_import">导入JSON</button>
+          <button class="btn" id="btn-export" data-i18n="editor_export">Export JSON</button>
+          <button class="btn" id="btn-import" data-i18n="editor_import">Import JSON</button>
       </div>
       <div class="sep"></div>
 
       <div class="row" style="gap: 20px;">
         <div class="col" style="flex:1.2;">
-            <h4 data-i18n="editor_object_list">对象列表</h4>
+            <h4 data-i18n="editor_object_list">Object List</h4>
             <div id="obj-list"></div>
 
             <div class="sep"></div>
-            <h4 data-i18n="editor_level_settings">关卡设置</h4>
-            <label><span data-i18n="editor_mode">模式</span>
+            <h4 data-i18n="editor_level_settings">Level Settings</h4>
+            <label><span data-i18n="editor_mode">Mode</span>
               <select id="game-mode">
-                <option value="elimination" selected data-i18n="editor_mode_elimination">炮台歼灭模式</option>
-                <option value="survival" data-i18n="editor_mode_survival">倒计时模式</option>
-                <option value="waypoint" data-i18n="editor_mode_waypoint">不准动模式</option>
+                <option value="elimination" selected data-i18n="editor_mode_elimination">Elimination Mode</option>
+                <option value="survival" data-i18n="editor_mode_survival">Survival Mode</option>
+                <option value="waypoint" data-i18n="editor_mode_waypoint">Waypoint Mode</option>
               </select>
             </label>
-            <label><span data-i18n="editor_time">时间(秒)</span> <input id="level-time" type="number" step="1" value="60"/></label>
+            <label><span data-i18n="editor_time">Time (s)</span> <input id="level-time" type="number" step="1" value="60"/></label>
             <!-- New: Player HP setting -->
-            <label><span data-i18n="editor_player_hp">玩家HP</span> <input id="player-hp" type="number" min="1" step="1" value="100"/></label>
+            <label><span data-i18n="editor_player_hp">Player HP</span> <input id="player-hp" type="number" min="1" step="1" value="100"/></label>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_arena_w">场地宽W</span> <input id="arena-w" type="number" step="1" value="90"/></label>
-                <label style="flex:1;"><span data-i18n="editor_arena_d">场地深D</span> <input id="arena-d" type="number" step="1" value="70"/></label>
+                <label style="flex:1;"><span data-i18n="editor_arena_w">Arena W</span> <input id="arena-w" type="number" step="1" value="90"/></label>
+                <label style="flex:1;"><span data-i18n="editor_arena_d">Arena D</span> <input id="arena-d" type="number" step="1" value="70"/></label>
             </div>
-                        <label style="display:flex; align-items:center; gap:6px; margin-top: 8px;"><input type="checkbox" id="topdown-view-enabled"/><span data-i18n="editor_topdown_view_enabled">第三人称俯瞰视角</span></label>
+                        <label style="display:flex; align-items:center; gap:6px; margin-top: 8px;"><input type="checkbox" id="topdown-view-enabled"/><span data-i18n="editor_topdown_view_enabled">Third-person Top-down View</span></label>
             <div id="topdown-camera-settings" class="row" style="display:none;">
-                <label style="flex:1;"><span data-i18n="editor_topdown_angle">俯瞰角度(°)</span> <input id="topdown-angle" type="number" min="10" max="89" step="1" value="60"/></label>
-                <label style="flex:1;"><span data-i18n="editor_topdown_distance">俯瞰距离</span> <input id="topdown-distance" type="number" min="5" max="200" step="1" value="35"/></label>
+                <label style="flex:1;"><span data-i18n="editor_topdown_angle">Top-down Angle (deg)</span> <input id="topdown-angle" type="number" min="10" max="89" step="1" value="60"/></label>
+                <label style="flex:1;"><span data-i18n="editor_topdown_distance">Top-down Distance</span> <input id="topdown-distance" type="number" min="5" max="200" step="1" value="35"/></label>
             </div>
             <div class="sep"></div>
-            <h4 data-i18n="editor_environment">环境设置</h4>
-            <label style="display:flex; align-items:center; gap:6px; margin-bottom: 8px;"><input type="checkbox" id="day-night-enabled"/><span data-i18n="editor_day_night_enabled">启用昼夜循环</span></label>
+            <h4 data-i18n="editor_environment">Environment</h4>
+            <label style="display:flex; align-items:center; gap:6px; margin-bottom: 8px;"><input type="checkbox" id="day-night-enabled"/><span data-i18n="editor_day_night_enabled">Enable Day/Night Cycle</span></label>
             <div class="row">
-              <label style="flex:1;"><span data-i18n="editor_cycle_duration">循环时长(秒)</span> <input id="cycle-duration" type="number" step="10" value="120"/></label>
-              <label style="flex:1;"><span data-i18n="editor_sun_intensity">日照强度</span> <input id="sun-intensity" type="number" min="0.1" max="3.0" step="0.1" value="1.0"/></label>
+              <label style="flex:1;"><span data-i18n="editor_cycle_duration">Cycle Duration (s)</span> <input id="cycle-duration" type="number" step="10" value="120"/></label>
+              <label style="flex:1;"><span data-i18n="editor_sun_intensity">Sun Intensity</span> <input id="sun-intensity" type="number" min="0.1" max="3.0" step="0.1" value="1.0"/></label>
             </div>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_sky_color_default">默认天空色</span> <input id="sky-color-default" type="color" value="#FFFFFF"/></label>
-                <label style="flex:1;"><span data-i18n="editor_sky_color_day">白天色</span> <input id="sky-color-day" type="color" value="#BDE3FF"/></label>
-                <label style="flex:1;"><span data-i18n="editor_sky_color_night">夜间色</span> <input id="sky-color-night" type="color" value="#0f172a"/></label>
+                <label style="flex:1;"><span data-i18n="editor_sky_color_default">Default Sky</span> <input id="sky-color-default" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_sky_color_day">Day Sky</span> <input id="sky-color-day" type="color" value="#BDE3FF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_sky_color_night">Night Sky</span> <input id="sky-color-night" type="color" value="#0f172a"/></label>
             </div>
 
             <div class="sep"></div>
-            <h4 data-i18n="editor_central_gem_settings">中央宝石灯设置</h4>
+            <h4 data-i18n="editor_central_gem_settings">Central Gem Light</h4>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_central_gem_height">高度</span> <input id="central-gem-height" type="number" min="5" max="200" step="1" value="50"/></label>
-                <label style="flex:1;"><span data-i18n="editor_central_gem_intensity">亮度</span> <input id="central-gem-intensity" type="number" min="0" max="5" step="0.1" value="0.5"/></label>
-                <label style="flex:1;"><span data-i18n="editor_central_gem_color">颜色</span> <input id="central-gem-color" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_central_gem_height">Height</span> <input id="central-gem-height" type="number" min="5" max="200" step="1" value="50"/></label>
+                <label style="flex:1;"><span data-i18n="editor_central_gem_intensity">Intensity</span> <input id="central-gem-intensity" type="number" min="0" max="5" step="0.1" value="0.5"/></label>
+                <label style="flex:1;"><span data-i18n="editor_central_gem_color">Color</span> <input id="central-gem-color" type="color" value="#FFFFFF"/></label>
             </div>
 
             <div class="sep"></div>
-            <h4 data-i18n="editor_lighthouse_settings">灯塔设置</h4>
+            <h4 data-i18n="editor_lighthouse_settings">Lighthouse Settings</h4>
              <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_lighthouse_intensity">灯光亮度</span> <input id="lighthouse-intensity" type="number" min="0" max="10" step="0.5" value="1.5"/></label>
-                <label style="flex:1;"><span data-i18n="editor_lighthouse_color">灯光颜色</span> <input id="lighthouse-color" type="color" value="#FFFF00"/></label>
-                <label style="flex:1;"><span data-i18n="editor_tower_color">塔身颜色</span> <input id="lighthouse-tower-color" type="color" value="#888888"/></label>
+                <label style="flex:1;"><span data-i18n="editor_lighthouse_intensity">Light Intensity</span> <input id="lighthouse-intensity" type="number" min="0" max="10" step="0.5" value="1.5"/></label>
+                <label style="flex:1;"><span data-i18n="editor_lighthouse_color">Light Color</span> <input id="lighthouse-color" type="color" value="#FFFF00"/></label>
+                <label style="flex:1;"><span data-i18n="editor_tower_color">Tower Color</span> <input id="lighthouse-tower-color" type="color" value="#888888"/></label>
             </div>
             <div class="row">
-                <button class="btn" id="lighthouse-texture-upload-btn" data-i18n="editor_upload_tower_texture">上传塔身图片</button>
-                <button class="btn warn" id="lighthouse-texture-clear-btn" data-i18n="editor_clear_texture">清除</button>
-                <label style="flex:1;"><span data-i18n="editor_tower_texture_scale">纹理缩放</span> <input id="lighthouse-texture-scale" type="number" min="0.1" step="0.5" value="4"/></label>
-            </div>
-
-            <div class="sep"></div>
-            <h4 data-i18n="editor_column_settings">柱子设置</h4>
-            <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_color">颜色</span> <input id="column-color" type="color" value="#FFFFFF"/></label>
-            </div>
-            <div class="row">
-                <button class="btn" id="column-texture-upload-btn" data-i18n="editor_upload_column_texture">上传柱子图片</button>
-                <button class="btn warn" id="column-texture-clear-btn" data-i18n="editor_clear_texture">清除</button>
-                <label style="flex:1;"><span data-i18n="editor_column_texture_scale">纹理缩放</span> <input id="column-texture-scale" type="number" min="0.1" step="0.5" value="1"/></label>
+                <button class="btn" id="lighthouse-texture-upload-btn" data-i18n="editor_upload_tower_texture">Upload Tower Image</button>
+                <button class="btn warn" id="lighthouse-texture-clear-btn" data-i18n="editor_clear_texture">Clear</button>
+                <label style="flex:1;"><span data-i18n="editor_tower_texture_scale">Tower Texture Scale</span> <input id="lighthouse-texture-scale" type="number" min="0.1" step="0.5" value="4"/></label>
             </div>
 
             <div class="sep"></div>
-            <h4 data-i18n="editor_crosshair_settings">全局准星设置</h4>
-            <p class="tips" data-i18n="editor_global_tips">修改将全局保存并应用。</p>
+            <h4 data-i18n="editor_column_settings">Column Settings</h4>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_crosshair_color">颜色</span> <input id="crosshair-color" type="color" value="#FFFFFF"/></label>
-                <label style="flex:1;"><span data-i18n="editor_crosshair_size">大小</span> <input id="crosshair-size" type="number" min="4" max="30" value="12"/></label>
-                <label style="flex:1;"><span data-i18n="editor_crosshair_thickness">粗细</span> <input id="crosshair-thickness" type="number" min="1" max="5" value="2"/></label>
+                <label style="flex:1;"><span data-i18n="editor_color">Color</span> <input id="column-color" type="color" value="#FFFFFF"/></label>
+            </div>
+            <div class="row">
+                <button class="btn" id="column-texture-upload-btn" data-i18n="editor_upload_column_texture">Upload Column Image</button>
+                <button class="btn warn" id="column-texture-clear-btn" data-i18n="editor_clear_texture">Clear</button>
+                <label style="flex:1;"><span data-i18n="editor_column_texture_scale">Column Texture Scale</span> <input id="column-texture-scale" type="number" min="0.1" step="0.5" value="1"/></label>
+            </div>
+
+            <div class="sep"></div>
+            <h4 data-i18n="editor_crosshair_settings">Global Crosshair Settings</h4>
+            <p class="tips" data-i18n="editor_global_tips">Changes are saved globally and applied automatically.</p>
+            <div class="row">
+                <label style="flex:1;"><span data-i18n="editor_crosshair_color">Color</span> <input id="crosshair-color" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_crosshair_size">Size</span> <input id="crosshair-size" type="number" min="4" max="30" value="12"/></label>
+                <label style="flex:1;"><span data-i18n="editor_crosshair_thickness">Thickness</span> <input id="crosshair-thickness" type="number" min="1" max="5" value="2"/></label>
             </div>
 
         </div>
 
         <div class="col" style="flex:1.5;">
-            <h4 data-i18n="editor_ground_settings">地面设置</h4>
-            <label><span data-i18n="editor_ground_style">地面风格</span>
+            <h4 data-i18n="editor_ground_settings">Ground Settings</h4>
+            <label><span data-i18n="editor_ground_style">Ground Style</span>
               <select id="ground-style">
-                <option value="checkered" data-i18n="style_checkered">方格 (默认)</option>
-                <option value="scifi" data-i18n="style_scifi">科技面板</option>
-                <option value="textile" data-i18n="style_textile">编织纹理</option>
-                <option value="classic" data-i18n="style_classic">古典瓷砖</option>
-                <option value="custom" data-i18n="style_custom">自定义图片</option>
+                <option value="checkered" data-i18n="style_checkered">Checkered (Default)</option>
+                <option value="scifi" data-i18n="style_scifi">Sci-Fi Panel</option>
+                <option value="textile" data-i18n="style_textile">Textile</option>
+                <option value="classic" data-i18n="style_classic">Classic Tiles</option>
+                <option value="custom" data-i18n="style_custom">Custom Image</option>
               </select>
             </label>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_base_color">底色</span> <input id="ground-color" type="color" value="#FFFFFF"/></label>
-                <label style="flex:1;"><span data-i18n="editor_pattern_color">花纹色</span> <input id="ground-pattern-color" type="color" value="#999999"/></label>
+                <label style="flex:1;"><span data-i18n="editor_base_color">Base Color</span> <input id="ground-color" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_pattern_color">Pattern Color</span> <input id="ground-pattern-color" type="color" value="#999999"/></label>
             </div>
             <div class="row" id="ground-texture-controls">
-                <button class="btn" id="ground-texture-upload-btn" data-i18n="editor_upload_texture">上传图片</button>
-                <button class="btn warn" id="ground-texture-clear-btn" data-i18n="editor_clear_texture">清除</button>
-                <label style="flex:1;"><span data-i18n="editor_texture_scale">纹理大小</span> <input id="ground-texture-scale" type="number" min="0.1" step="0.5" value="5"/></label>
+                <button class="btn" id="ground-texture-upload-btn" data-i18n="editor_upload_texture">Upload Image</button>
+                <button class="btn warn" id="ground-texture-clear-btn" data-i18n="editor_clear_texture">Clear</button>
+                <label style="flex:1;"><span data-i18n="editor_texture_scale">Texture Size/Scale</span> <input id="ground-texture-scale" type="number" min="0.1" step="0.5" value="5"/></label>
             </div>
 
             <div class="sep"></div>
 
-          <h4 data-i18n="editor_object_properties">对象属性</h4>
-          <label><span data-i18n="editor_object_type">对象类型</span>
+          <h4 data-i18n="editor_object_properties">Object Properties</h4>
+          <label><span data-i18n="editor_object_type">Object Type</span>
             <select id="obj-kind">
-              <option value="player" data-i18n="obj_player">玩家起点</option>
-              <option value="turret" data-i18n="obj_turret">炮台</option>
-              <option value="kingkong_turret" data-i18n="obj_turret_kingkong">金刚炮台</option>
-              <option value="fire_dragon_boss" data-i18n="obj_fire_dragon_boss">火龙 Boss</option>
-              <option value="wall" data-i18n="obj_wall">墙壁</option>
-              <option value="waypoint" data-i18n="obj_waypoint">路标</option>
+              <option value="player" data-i18n="obj_player">Player Start</option>
+              <option value="turret" data-i18n="obj_turret">Standard Turret</option>
+              <option value="kingkong_turret" data-i18n="obj_turret_kingkong">King Kong Turret</option>
+              <option value="fire_dragon_boss" data-i18n="obj_fire_dragon_boss">Fire Dragon Boss</option>
+              <option value="wall" data-i18n="obj_wall">Wall</option>
+              <option value="waypoint" data-i18n="obj_waypoint">Waypoint</option>
             </select>
           </label>
           <div class="row" id="position-inputs-row">
-            <label style="flex:1;"><span data-i18n="editor_pos_x">位置 X</span> <input id="pos-x" type="number" step="0.5" /></label>
-            <label style="flex:1;"><span data-i18n="editor_pos_z">位置 Z</span> <input id="pos-z" type="number" step="0.5" /></label>
+            <label style="flex:1;"><span data-i18n="editor_pos_x">Pos X</span> <input id="pos-x" type="number" step="0.5" /></label>
+            <label style="flex:1;"><span data-i18n="editor_pos_z">Pos Z</span> <input id="pos-z" type="number" step="0.5" /></label>
           </div>
 
           <div id="turret-panel" style="display:none;">
             <div class="sep"></div>
-            <label><span data-i18n="editor_turret_style">炮台风格</span>
+            <label><span data-i18n="editor_turret_style">Turret Style</span>
                 <select id="turret-style">
-                  <option value="scifi_blue" selected data-i18n="tstyle_scifi_blue">科幻蓝 (默认)</option>
-                  <option value="military_green" data-i18n="tstyle_military_green">军工绿</option>
-                  <option value="stealth_black" data-i18n="tstyle_stealth_black">潜伏黑</option>
-                  <option value="alert_red" data-i18n="tstyle_alert_red">警戒红</option>
-                  <option value="construction_yellow" data-i18n="tstyle_construction_yellow">工程黄</option>
+                  <option value="scifi_blue" selected data-i18n="tstyle_scifi_blue">Sci-Fi Blue (Default)</option>
+                  <option value="military_green" data-i18n="tstyle_military_green">Military Green</option>
+                  <option value="stealth_black" data-i18n="tstyle_stealth_black">Stealth Black</option>
+                  <option value="alert_red" data-i18n="tstyle_alert_red">Alert Red</option>
+                  <option value="construction_yellow" data-i18n="tstyle_construction_yellow">Construction Yellow</option>
                 </select>
             </label>
-            <label><span data-i18n="editor_turret_type">炮台类型</span>
+            <label><span data-i18n="editor_turret_type">Turret Type</span>
               <select id="turret-type">
-                <option value="fixed" data-i18n="ttype_fixed">固定</option>
-                <option value="moving" selected data-i18n="ttype_moving">移动</option>
-                <option value="tracking" data-i18n="ttype_tracking">追踪</option>
+                <option value="fixed" data-i18n="ttype_fixed">Fixed</option>
+                <option value="moving" selected data-i18n="ttype_moving">Moving</option>
+                <option value="tracking" data-i18n="ttype_tracking">Tracking</option>
               </select>
             </label>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_fire_rate">射速 (秒/发)</span> <input id="turret-rate" type="number" step="0.1" value="2.0"/></label>
-                <label style="flex:1;"><span data-i18n="editor_bullet_speed">子弹速度</span> <input id="bullet-speed" type="number" step="1" value="60"/></label>
+                <label style="flex:1;"><span data-i18n="editor_fire_rate">Fire Rate (s/shot)</span> <input id="turret-rate" type="number" step="0.1" value="2.0"/></label>
+                <label style="flex:1;"><span data-i18n="editor_bullet_speed">Bullet Speed</span> <input id="bullet-speed" type="number" step="1" value="60"/></label>
             </div>
-            <label><span data-i18n="editor_move_speed_tier">移动速度档位</span>
+            <label><span data-i18n="editor_move_speed_tier">Move Speed Tier</span>
               <select id="gear">
-                <option value="1" data-i18n="gear_slow">慢速 (x0.5)</option>
-                <option value="2" selected data-i18n="gear_medium">中速 (x0.7)</option>
-                <option value="3" data-i18n="gear_fast">快速 (x1.0)</option>
+                <option value="1" data-i18n="gear_slow">Slow (x0.5)</option>
+                <option value="2" selected data-i18n="gear_medium">Medium (x0.7)</option>
+                <option value="3" data-i18n="gear_fast">Fast (x1.0)</option>
               </select>
             </label>
-            <label><span data-i18n="editor_move_mode">移动模式（无路径时）</span>
+            <label><span data-i18n="editor_move_mode">Move Mode (no path)</span>
               <select id="move-mode">
-                <option value="lr" data-i18n="mmode_lr">左右</option>
-                <option value="area" selected data-i18n="mmode_area">四周</option>
+                <option value="lr" data-i18n="mmode_lr">Left-Right</option>
+                <option value="area" selected data-i18n="mmode_area">Area</option>
               </select>
             </label>
             <div class="row">
-              <label style="flex:1;"><span data-i18n="editor_patrol_w">巡逻宽 W</span> <input id="patrol-w" type="number" step="1" value="24"/></label>
-              <label style="flex:1;"><span data-i18n="editor_patrol_d">巡逻深 D</span> <input id="patrol-d" type="number" step="1" value="16"/></label>
+              <label style="flex:1;"><span data-i18n="editor_patrol_w">Patrol W</span> <input id="patrol-w" type="number" step="1" value="24"/></label>
+              <label style="flex:1;"><span data-i18n="editor_patrol_d">Patrol D</span> <input id="patrol-d" type="number" step="1" value="16"/></label>
             </div>
 
-            <h4 data-i18n="editor_path_settings">移动轨迹（可选）</h4>
+            <h4 data-i18n="editor_path_settings">Movement Path (Optional)</h4>
             <div class="row">
-              <button class="btn" id="path-edit" data-i18n="editor_path_edit">编辑路径</button>
-              <button class="btn primary" id="path-done" style="display:none" data-i18n="editor_path_done">完成</button>
-              <button class="btn warn" id="path-clear" data-i18n="editor_path_clear">清空</button>
-              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="path-loop" checked/><span data-i18n="editor_path_loop">循环</span></label>
+              <button class="btn" id="path-edit" data-i18n="editor_path_edit">Edit Path</button>
+              <button class="btn primary" id="path-done" style="display:none" data-i18n="editor_path_done">Done</button>
+              <button class="btn warn" id="path-clear" data-i18n="editor_path_clear">Clear</button>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="path-loop" checked/><span data-i18n="editor_path_loop">Loop</span></label>
             </div>
           </div>
 
           <div id="kingkong-turret-panel" style="display:none;">
             <div class="sep"></div>
-            <h4 data-i18n="obj_turret_kingkong">金刚炮台属性</h4>
+            <h4 data-i18n="obj_turret_kingkong">King Kong Turret</h4>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_turret_hp">生命值 (HP)</span> <input id="kingkong-hp" type="number" min="1" step="1" value="10"/></label>
-                <label style="flex:1;"><span data-i18n="editor_turret_body_color">机体颜色</span> <input id="kingkong-color" type="color" value="#4A4A6A"/></label>
+                <label style="flex:1;"><span data-i18n="editor_turret_hp">Health (HP)</span> <input id="kingkong-hp" type="number" min="1" step="1" value="10"/></label>
+                <label style="flex:1;"><span data-i18n="editor_turret_body_color">Body Color</span> <input id="kingkong-color" type="color" value="#4A4A6A"/></label>
             </div>
-             <label><span data-i18n="editor_move_speed_tier">移动速度档位</span>
+             <label><span data-i18n="editor_move_speed_tier">Move Speed Tier</span>
               <select id="kingkong-gear">
-                <option value="1" data-i18n="gear_slow">慢速 (x0.5)</option>
-                <option value="2" selected data-i18n="gear_medium">中速 (x0.7)</option>
-                <option value="3" data-i18n="gear_fast">快速 (x1.0)</option>
+                <option value="1" data-i18n="gear_slow">Slow (x0.5)</option>
+                <option value="2" selected data-i18n="gear_medium">Medium (x0.7)</option>
+                <option value="3" data-i18n="gear_fast">Fast (x1.0)</option>
               </select>
             </label>
             <div class="row">
-                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_interval">AOE 间隔 (秒)</span> <input id="kingkong-aoe-interval" type="number" min="1" step="0.5" value="8.0"/></label>
-                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_radius">AOE 范围</span> <input id="kingkong-aoe-radius" type="number" min="1" step="1" value="10"/></label>
-                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_damage">AOE 伤害</span> <input id="kingkong-aoe-damage" type="number" min="1" step="1" value="25"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_interval">AOE Interval (s)</span> <input id="kingkong-aoe-interval" type="number" min="1" step="0.5" value="8.0"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_radius">AOE Radius</span> <input id="kingkong-aoe-radius" type="number" min="1" step="1" value="10"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_damage">AOE Damage</span> <input id="kingkong-aoe-damage" type="number" min="1" step="1" value="25"/></label>
             </div>
 
-            <h4 data-i18n="editor_path_settings">移动轨迹（可选）</h4>
+            <h4 data-i18n="editor_path_settings">Movement Path (Optional)</h4>
             <div class="row">
-              <button class="btn" id="kingkong-path-edit" data-i18n="editor_path_edit">编辑路径</button>
-              <button class="btn primary" id="kingkong-path-done" style="display:none" data-i18n="editor_path_done">完成</button>
-              <button class="btn warn" id="kingkong-path-clear" data-i18n="editor_path_clear">清空</button>
-              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="kingkong-path-loop" checked/><span data-i18n="editor_path_loop">循环</span></label>
+              <button class="btn" id="kingkong-path-edit" data-i18n="editor_path_edit">Edit Path</button>
+              <button class="btn primary" id="kingkong-path-done" style="display:none" data-i18n="editor_path_done">Done</button>
+              <button class="btn warn" id="kingkong-path-clear" data-i18n="editor_path_clear">Clear</button>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="kingkong-path-loop" checked/><span data-i18n="editor_path_loop">Loop</span></label>
             </div>
-             <p class="tips" style="margin-top: 4px;" data-i18n="editor_kingkong_tips">金刚炮台在没有路径时会自动追踪玩家。</p>
+             <p class="tips" style="margin-top: 4px;" data-i18n="editor_kingkong_tips">King Kong turrets automatically track the player when no path is set.</p>
           </div>
 
           <div id="dragon-boss-panel" style="display:none;">
             <div class="sep"></div>
-            <h4 data-i18n="editor_dragon_settings">火龙 Boss 属性</h4>
+            <h4 data-i18n="editor_dragon_settings">Fire Dragon Boss Settings</h4>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_turret_hp">生命值 (HP)</span> <input id="dragon-hp" type="number" min="1" step="1" value="10"/></label>
-                <label style="flex:1;"><span data-i18n="editor_turret_aoe_damage">AOE 伤害</span> <input id="dragon-aoe-damage" type="number" min="1" step="1" value="50"/></label>
+                <label style="flex:1;"><span data-i18n="editor_turret_hp">Health (HP)</span> <input id="dragon-hp" type="number" min="1" step="1" value="10"/></label>
+                <label style="flex:1;"><span data-i18n="editor_turret_aoe_damage">AOE Damage</span> <input id="dragon-aoe-damage" type="number" min="1" step="1" value="50"/></label>
             </div>
             <div class="row">
-                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_radius">AOE 范围</span> <input id="dragon-aoe-radius" type="number" min="1" step="1" value="6"/></label>
-                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_interval">AOE 间隔 (秒)</span> <input id="dragon-aoe-interval" type="number" min="1" step="0.5" value="5"/></label>
-                 <label style="flex:1;"><span data-i18n="editor_dragon_teleport_interval">瞬移间隔 (秒)</span> <input id="dragon-teleport-interval" type="number" min="1" step="0.5" value="5"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_radius">AOE Radius</span> <input id="dragon-aoe-radius" type="number" min="1" step="1" value="6"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_turret_aoe_interval">AOE Interval (s)</span> <input id="dragon-aoe-interval" type="number" min="1" step="0.5" value="5"/></label>
+                 <label style="flex:1;"><span data-i18n="editor_dragon_teleport_interval">Teleport Interval (s)</span> <input id="dragon-teleport-interval" type="number" min="1" step="0.5" value="5"/></label>
             </div>
-            <p class="tips" style="margin-top: 4px;" data-i18n="editor_dragon_tips">火龙会周期性消失并换位，从天空降下火焰 AOE。</p>
+            <p class="tips" style="margin-top: 4px;" data-i18n="editor_dragon_tips">The fire dragon vanishes and relocates periodically, then drops a flame AOE from the sky.</p>
           </div>
 
           <div id="wall-panel" style="display:none;">
             <div class="sep"></div>
-            <h4 data-i18n="editor_wall_properties">墙壁属性</h4>
-            <p class="tips" data-i18n="editor_wall_tips_new">拖动墙体移动。使用“拖拽模式”或“拉伸模式”调整端点。</p>
+            <h4 data-i18n="editor_wall_properties">Wall Properties</h4>
+            <p class="tips" data-i18n="editor_wall_tips_new">Drag the wall body to move it. Use Drag Mode or Stretch Mode to adjust endpoints.</p>
 
             
 <div class="row">
-    <button class="btn" id="btn-wall-drag-mode" data-i18n="editor_wall_drag_mode">传统拖拽模式</button>
-    <button class="btn" id="btn-wall-extend-mode" data-i18n="editor_wall_extend_mode">外延模式</button>
-    <button class="btn primary" id="btn-wall-stretch-mode" data-i18n="editor_wall_stretch_mode">端点拉伸模式</button>
+    <button class="btn" id="btn-wall-drag-mode" data-i18n="editor_wall_drag_mode">Classic Drag Mode</button>
+    <button class="btn" id="btn-wall-extend-mode" data-i18n="editor_wall_extend_mode">Extend Mode</button>
+    <button class="btn primary" id="btn-wall-stretch-mode" data-i18n="editor_wall_stretch_mode">Endpoint Stretch Mode</button>
 </div>
-<p class="tips" id="wall-extend-instructions" style="display:none;" data-i18n="editor_wall_extend_instructions">点击一个绿色端点作为起点，然后在地图上点击新端点以生成并连接新的墙体。</p>
-<p class="tips" id="wall-stretch-instructions" style="display:none;" data-i18n="editor_wall_stretch_instructions">点击一个绿色端点开始拉伸，然后在地图上点击目标位置。</p>
+<p class="tips" id="wall-extend-instructions" style="display:none;" data-i18n="editor_wall_extend_instructions">Click a green endpoint to set the anchor, then click the ground to create a new wall connected to it.</p>
+<p class="tips" id="wall-stretch-instructions" style="display:none;" data-i18n="editor_wall_stretch_instructions">Click a green endpoint to start stretching, then click the target location on the map.</p>
             <div class="sep"></div>
 
-            <label><span data-i18n="editor_wall_style">墙体风格</span>
+            <label><span data-i18n="editor_wall_style">Wall Style</span>
               <select id="wall-type">
-                <option value="brick" selected data-i18n="wstyle_brick">红砖墙 (默认)</option>
-                <option value="glass" data-i18n="wstyle_glass">玻璃墙</option>
-                <option value="castle" data-i18n="wstyle_castle">古堡石墙</option>
-                <option value="wood" data-i18n="wstyle_wood">原木风格</option>
-                <option value="imperial" data-i18n="wstyle_imperial">紫禁城风格</option>
-                <option value="cute" data-i18n="wstyle_cute">可爱风格</option>
-                <option value="geometric" data-i18n="wstyle_geometric">几何图案</option>
-                <option value="custom" data-i18n="wstyle_custom">自定义图片</option>
+                <option value="brick" selected data-i18n="wstyle_brick">Brick (Default)</option>
+                <option value="glass" data-i18n="wstyle_glass">Glass</option>
+                <option value="castle" data-i18n="wstyle_castle">Castle Stone</option>
+                <option value="wood" data-i18n="wstyle_wood">Wood Log</option>
+                <option value="imperial" data-i18n="wstyle_imperial">Imperial</option>
+                <option value="cute" data-i18n="wstyle_cute">Cute</option>
+                <option value="geometric" data-i18n="wstyle_geometric">Geometric</option>
+                <option value="custom" data-i18n="wstyle_custom">Custom Image</option>
               </select>
             </label>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_base_color">底色</span> <input id="wall-base-color" type="color" value="#FFFFFF"/></label>
-                <label style="flex:1;"><span data-i18n="editor_pattern_color">花纹色</span> <input id="wall-pattern-color" type="color" value="#999999"/></label>
+                <label style="flex:1;"><span data-i18n="editor_base_color">Base Color</span> <input id="wall-base-color" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_pattern_color">Pattern Color</span> <input id="wall-pattern-color" type="color" value="#999999"/></label>
             </div>
             <div class="row" id="wall-texture-controls">
-                <button class="btn" id="wall-texture-upload-btn" data-i18n="editor_upload_texture">上传图片</button>
-                <button class="btn warn" id="wall-texture-clear-btn" data-i18n="editor_clear_texture">清除</button>
-                <label style="flex:1;"><span data-i18n="editor_texture_scale">纹理缩放</span> <input id="wall-texture-scale" type="number" min="0.1" step="0.1" value="1"/></label>
+                <button class="btn" id="wall-texture-upload-btn" data-i18n="editor_upload_texture">Upload Image</button>
+                <button class="btn warn" id="wall-texture-clear-btn" data-i18n="editor_clear_texture">Clear</button>
+                <label style="flex:1;"><span data-i18n="editor_texture_scale">Texture Size/Scale</span> <input id="wall-texture-scale" type="number" min="0.1" step="0.1" value="1"/></label>
             </div>
 
             <div class="row">
-              <label style="flex:1;"><span data-i18n="editor_thickness_t">厚度 T</span> <input id="wall-t" type="number" step="0.1" value="1"/></label>
-              <label style="flex:1;"><span data-i18n="editor_height_h">高度 H</span> <input id="wall-h" type="number" step="1" value="4"/></label>
+              <label style="flex:1;"><span data-i18n="editor_thickness_t">Thickness T</span> <input id="wall-t" type="number" step="0.1" value="1"/></label>
+              <label style="flex:1;"><span data-i18n="editor_height_h">Height H</span> <input id="wall-h" type="number" step="1" value="4"/></label>
             </div>
           </div>
 
           <div id="waypoint-panel" style="display:none;">
             <div class="sep"></div>
-            <h4 data-i18n="editor_waypoint_properties">路标属性</h4>
-            <label><span data-i18n="editor_waypoint_order">顺序编号</span> <input id="waypoint-order" type="number" step="1" value="1" min="1"/></label>
+            <h4 data-i18n="editor_waypoint_properties">Waypoint Properties</h4>
+            <label><span data-i18n="editor_waypoint_order">Order Number</span> <input id="waypoint-order" type="number" step="1" value="1" min="1"/></label>
             <div class="row">
-              <label style="flex:1;"><span data-i18n="editor_waypoint_size">尺寸</span> <input id="waypoint-size" type="number" step="0.1" value="1.0" min="0.1"/></label>
-              <label style="flex:1;"><span data-i18n="editor_waypoint_color">辉光颜色</span> <input id="waypoint-color" type="color" value="#f59e0b"/></label>
+              <label style="flex:1;"><span data-i18n="editor_waypoint_size">Size</span> <input id="waypoint-size" type="number" step="0.1" value="1.0" min="0.1"/></label>
+              <label style="flex:1;"><span data-i18n="editor_waypoint_color">Glow Color</span> <input id="waypoint-color" type="color" value="#f59e0b"/></label>
             </div>
             <div class="row">
-                <label style="flex:1;"><span data-i18n="editor_waypoint_intensity">辉光亮度</span> <input id="waypoint-intensity" type="number" step="0.1" value="1.0" min="0"/></label>
-                <label style="flex:1;"><span data-i18n="editor_waypoint_textColor">数字颜色</span> <input id="waypoint-textColor" type="color" value="#FFFFFF"/></label>
+                <label style="flex:1;"><span data-i18n="editor_waypoint_intensity">Glow Intensity</span> <input id="waypoint-intensity" type="number" step="0.1" value="1.0" min="0"/></label>
+                <label style="flex:1;"><span data-i18n="editor_waypoint_textColor">Number Color</span> <input id="waypoint-textColor" type="color" value="#FFFFFF"/></label>
             </div>
           </div>
 
 
           <div class="sep"></div>
           <div class="row">
-            <button class="btn primary" id="btn-add" data-i18n="editor_add_new">添加新对象</button>
-            <button class="btn warn" id="btn-del" data-i18n="editor_delete_selected">删除选中对象</button>
+            <button class="btn primary" id="btn-add" data-i18n="editor_add_new">Add New Object</button>
+            <button class="btn warn" id="btn-del" data-i18n="editor_delete_selected">Delete Selected</button>
           </div>
         </div>
       </div>
     </div>
 
     <div id="pause" class="panel">
-      <h3 data-i18n="pause_title">暂停</h3>
+      <h3 data-i18n="pause_title">Paused</h3>
       <div class="row">
-        <button class="btn primary" id="btn-resume" data-i18n="pause_resume">继续</button>
-        <button class="btn" id="btn-restart" data-i18n="pause_restart">重开本关</button>
-        <button class="btn" id="btn-back-to-editor" data-i18n="pause_back_to_editor" style="display:none;">返回编辑器</button>
-        <button class="btn warn" id="btn-quit" data-i18n="pause_quit">退出到菜单</button>
+        <button class="btn primary" id="btn-resume" data-i18n="pause_resume">Resume</button>
+        <button class="btn" id="btn-restart" data-i18n="pause_restart">Restart Level</button>
+        <button class="btn" id="btn-back-to-editor" data-i18n="pause_back_to_editor" style="display:none;">Back to Editor</button>
+        <button class="btn warn" id="btn-quit" data-i18n="pause_quit">Quit to Menu</button>
       </div>
-      <p style="margin-top:8px" data-i18n="pause_hint"></p>
+      <p style="margin-top:8px" data-i18n="pause_hint">Hint: press <span class="kbd">Esc</span> to resume the game.</p>
     </div>
 
-    <div id="lockHint" class="panel" data-i18n="lock_hint"></div>
+    <div id="lockHint" class="panel" data-i18n="lock_hint">Click the canvas to enter mouse mode, or hold <b>right mouse</b> and drag to rotate the view temporarily.</div>
   </div>
 
-  <script type="module" src="./src/main.js?v=20260627c"></script>
+  <script type="module" src="./src/main.js?v=20260706a"></script>
 </body>
 </html>

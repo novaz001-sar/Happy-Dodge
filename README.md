@@ -17,7 +17,7 @@ Then open <http://127.0.0.1:5173/>.
 - `index.html` - page shell and import map
 - `src/styles.css` - UI styling
 - `src/main.js` - game runtime, rendering, editor, and input wiring
-- `src/i18n.js` - Chinese and English UI text
+- `src/i18n.js` - English UI text
 - `src/levels.js` - built-in level definitions
 - `.github/workflows/deploy-pages.yml` - GitHub Pages deployment workflow
 

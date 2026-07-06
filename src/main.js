@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createI18n } from './i18n.js?v=20260627c';
-import { createLevels } from './levels.js?v=20260627c';
+import { createI18n } from './i18n.js?v=20260706a';
+import { createLevels } from './levels.js?v=20260706a';
 
 // ---------- Guards ----------
 (function pointerCaptureGuard(){
@@ -55,7 +55,7 @@ let objectCounter = 0;
 let gameStartTime = 0;
 let editingBuiltInKey = null;
 let editingCustomSlot = null;
-let currentLang = 'zh-CN';
+let currentLang = 'en-US';
 let isTestingFromEditor = false;
 let totalWaypointsInLevel = 0;
 
@@ -348,7 +348,7 @@ const sound = (() => {
 
 // i18n Helper Functions
 function T(key, ...args) {
-    const langTranslations = i18n[currentLang] || i18n['zh-CN'];
+    const langTranslations = i18n[currentLang] || i18n['en-US'];
     let translation = langTranslations[key];
 
     if (translation === undefined) {
@@ -356,7 +356,7 @@ function T(key, ...args) {
         if (key === 'editor_wall_tips_new' && !translation && langTranslations['editor_wall_tips']) {
              translation = langTranslations['editor_wall_tips'];
         } else {
-            translation = i18n['zh-CN'][key] || `[${key}]`;
+            translation = i18n['en-US'][key] || `[${key}]`;
         }
     }
 
@@ -456,20 +456,20 @@ scene.add(p2Mesh);
 
 // New function to manage Wall Edit Modes
 
-// 支持三种：'drag' | 'stretch' | 'extend'
+// Supports three modes: 'drag', 'stretch', and 'extend'.
 function setWallEditMode(mode) {
   const sel = editorData.selection;
   const stretchMode = editorData.wallStretchMode;
   const wall = (sel && sel.kind === 'wall') ? sel.ref : null;
 
-  // 进入两种端点模式（需选中墙）
+  // Enter an endpoint mode; this requires a selected wall.
   if ((mode === 'stretch' || mode === 'extend') && wall) {
 stretchMode.active = true;
 stretchMode.mode = mode;
 stretchMode.wall = wall;
 stretchMode.stretchingEnd = null;
 
-// UI 状态
+// UI state
 btnWallDragMode.classList.remove('primary');
 btnWallStretchMode.classList.toggle('primary', mode === 'stretch');
 if (typeof btnWallExtendMode !== 'undefined') btnWallExtendMode.classList.toggle('primary', mode === 'extend');
@@ -477,7 +477,7 @@ if (typeof btnWallExtendMode !== 'undefined') btnWallExtendMode.classList.toggle
 wallStretchInstructions.style.display = (mode === 'stretch') ? 'block' : 'none';
 if (typeof wallExtendInstructions !== 'undefined') wallExtendInstructions.style.display  = (mode === 'extend')  ? 'block' : 'none';
 
-// 悬浮黄点（初始隐藏）
+// Floating yellow marker, hidden initially.
 if (!stretchMode.hoverMarker) {
   const geometry = new THREE.SphereGeometry(0.6, 16, 16);
   const material = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.7, depthTest: false });
@@ -487,12 +487,12 @@ if (!stretchMode.hoverMarker) {
 if (stretchMode.hoverMarker.parent !== scene) scene.add(stretchMode.hoverMarker);
 stretchMode.hoverMarker.visible = false;
 
-// 端点小球刷新
+// Refresh endpoint handles.
 showWallHandles(wall);
 return;
   }
 
-  // 其他情况（含 drag 或未选中墙）：回到拖拽模式/清理
+  // Otherwise, including drag mode or no selected wall, reset to drag mode and clean up.
   stretchMode.active = false;
   stretchMode.mode = 'stretch';
   stretchMode.wall = null;
@@ -789,7 +789,7 @@ if (pathEdit.active && pathEdit.turret && hitPt){
 
 // --- Wall Stretch/Extend Mode Logic ---
 if (stretchMode.active && stretchMode.wall) {
-  // 1) 点端点：选择锚点（被选端点会变白，黄点出现）
+  // 1. Click an endpoint to select the anchor. The selected endpoint turns white and the yellow marker appears.
   if (picked.kind === 'handle' && picked.ref.wall === stretchMode.wall) {
   stretchMode.stretchingEnd = picked.ref.type; // 'p1' or 'p2'
   showWallHandles(stretchMode.wall);
@@ -797,12 +797,12 @@ if (stretchMode.active && stretchMode.wall) {
   return;
   }
 
-  // 2) 已选择锚点后，点地面：根据模式执行
+  // 2. After choosing an anchor, click the ground to perform the active mode.
   if (stretchMode.stretchingEnd && hitPt) {
   const wall = stretchMode.wall;
 
   if (stretchMode.mode === 'extend') {
-      // 从被选端点“生长”出一面新墙，复制旧墙参数
+      // Grow a new wall from the selected endpoint and copy the existing wall settings.
       const fixed = (stretchMode.stretchingEnd === 'p1') ? wall.p1 : wall.p2;
       addWall(
         fixed.x, fixed.z,
@@ -810,14 +810,14 @@ if (stretchMode.active && stretchMode.wall) {
         wall.h, wall.t, wall.type, null,
         wall.colors, wall.customTextureURL, wall.textureScale
       );
-      // 仍停留在外延模式，便于继续操作
+      // Stay in extend mode for continued editing.
       stretchMode.stretchingEnd = null;
       showWallHandles(wall);
       if (stretchMode.hoverMarker) stretchMode.hoverMarker.visible = false;
       updateObjectListUI();
       return;
   } else {
-      // 端点拉伸：修改旧墙端点坐标
+      // Endpoint stretch: modify the existing wall endpoint.
       if (stretchMode.stretchingEnd === 'p1') { wall.p1.x = hitPt.x; wall.p1.z = hitPt.z; }
       else { wall.p2.x = hitPt.x; wall.p2.z = hitPt.z; }
       updateWallMesh(wall);
@@ -882,7 +882,7 @@ if (!hit) return;
 
 const stretchMode = editorData.wallStretchMode;
 
-// --- Wall Stretch Mode Hover Feedback (标黄点) ---
+// --- Wall Stretch Mode Hover Feedback (yellow marker) ---
 // If stretch mode is active AND an endpoint is selected AND the marker exists/is visible
 if (stretchMode.active && stretchMode.stretchingEnd && stretchMode.hoverMarker && stretchMode.hoverMarker.visible) {
     // Update the yellow marker position to follow the mouse cursor on the ground
@@ -984,7 +984,7 @@ const initYawPitchFromCamera = ()=>{ const e = new THREE.Euler().setFromQuaterni
 const applyYawPitch = ()=>{ const maxP=Math.PI/2-0.05; look.pitch=Math.max(-maxP,Math.min(maxP,look.pitch)); camera.quaternion.setFromEuler(new THREE.Euler(look.pitch,look.yaw,0,'YXZ')); };
 
 const updateTopDownCamera = ()=>{
-    // Spherical camera around the player: distance + pitch angle (俯瞰角度)
+    // Spherical camera around the player: distance plus top-down pitch angle.
     const angDeg = (Number(cameraSettings.topDownAngle) || DEFAULT_CAMERA_SETTINGS.topDownAngle);
     const dist = (Number(cameraSettings.topDownDistance) || DEFAULT_CAMERA_SETTINGS.topDownDistance);
     const yawDeg = (Number(cameraSettings.topDownYaw) || DEFAULT_CAMERA_SETTINGS.topDownYaw);
@@ -4170,7 +4170,7 @@ function refreshCustomMenuButtons(){
   $('open-editor').addEventListener('click', ()=> {
       // Updated Blank Level Defaults
       const blankLevel = {
-          name: "新关卡", gameMode: GameModes.ELIM, timer: 60, arenaSize: { width: 90, depth: 70 }, camera: { viewMode: ViewModes.FIRST, topDownAngle: DEFAULT_CAMERA_SETTINGS.topDownAngle, topDownDistance: DEFAULT_CAMERA_SETTINGS.topDownDistance, topDownYaw: DEFAULT_CAMERA_SETTINGS.topDownYaw }, playerStart: { x: 0, z: 20 },
+          name: "New Level", gameMode: GameModes.ELIM, timer: 60, arenaSize: { width: 90, depth: 70 }, camera: { viewMode: ViewModes.FIRST, topDownAngle: DEFAULT_CAMERA_SETTINGS.topDownAngle, topDownDistance: DEFAULT_CAMERA_SETTINGS.topDownDistance, topDownYaw: DEFAULT_CAMERA_SETTINGS.topDownYaw }, playerStart: { x: 0, z: 20 },
           ground: { style: 'checkered', color: '#FFFFFF', patternColor: '#999999', textureScale: 5 },
           environment: {
               dayNightCycleEnabled: false, cycleDuration: 120, sunIntensityMultiplier: 0.1,
